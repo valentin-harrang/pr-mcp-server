@@ -1,5 +1,5 @@
 import { DiffResultTextFile } from "simple-git";
-import { git, detectMainBranch, createGitInstance } from "./repository.js";
+import { detectMainBranch, createGitInstance } from "./repository.js";
 import { AnalysisResult, ReviewersResult } from "./types.js";
 
 export async function analyzeBranch(
