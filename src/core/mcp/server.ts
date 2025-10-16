@@ -113,6 +113,41 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {},
       },
     },
+    {
+      name: "generate_pr_complete",
+      description:
+        "Generates both a conventional commit-style PR title and a complete Pull Request description in one operation. Combines the functionality of generate_pr_title and generate_pr_description. Automatically analyzes the current Git branch from the working directory. Use this when the user wants both title and description generated together.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          template: {
+            type: "string",
+            enum: ["standard", "detailed", "minimal"],
+            description: "Template to use for the description",
+            default: "standard",
+          },
+          language: {
+            type: "string",
+            enum: ["en", "fr"],
+            description: "Description language",
+            default: "fr",
+          },
+          includeStats: {
+            type: "boolean",
+            description: "Include statistics in the description",
+            default: true,
+          },
+          maxTitleLength: {
+            type: "number",
+            description: "Maximum length for the title (optional, e.g., 72)",
+          },
+          baseBranch: {
+            type: "string",
+            description: "Base branch for comparison (auto-detected if not provided)",
+          },
+        },
+      },
+    },
   ],
 }));
 

@@ -4,12 +4,14 @@ import { executeGeneratePR } from "../../tools/generate-pr-description.tool.js";
 import { executeSuggestReviewers } from "../../tools/suggest-reviewers.tool.js";
 import { executeGenerateTitle } from "../../tools/generate-pr-title.tool.js";
 import { executeReview } from "../../tools/review.tool.js";
+import { executeGenerateComplete } from "../../tools/generate-pr-complete.tool.js";
 import {
   AnalyzeBranchSchema,
   GeneratePRSchema,
   SuggestReviewersSchema,
   TitleSchema,
   ReviewSchema,
+  GenerateCompleteSchema,
 } from "../../validation/schemas.js";
 
 /**
@@ -97,6 +99,25 @@ export async function handleToolRequest(
             {
               type: "text",
               text: review,
+            },
+          ],
+        };
+      }
+
+      case "generate_pr_complete": {
+        const validated = GenerateCompleteSchema.parse(args ?? {});
+        const result = await executeGenerateComplete(
+          validated.template,
+          validated.language,
+          validated.includeStats,
+          validated.maxTitleLength,
+          validated.baseBranch
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };

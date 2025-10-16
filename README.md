@@ -45,11 +45,12 @@ npx @modelcontextprotocol/inspector node --inspect ./dist/core/mcp/server.js
 
 - Inspector will open and list the `pr-mcp-server`.
 - Click "List Tools" and try:
-  - `analyze_branch`
-  - `generate_pr_description`
-  - `suggest_reviewers`
-  - `review`
-  - `generate_pr_title`
+- `analyze_branch`
+- `generate_pr_description`
+- `generate_pr_complete`
+- `suggest_reviewers`
+- `review`
+- `generate_pr_title`
 
 Tip: Run Inspector inside a Git repository so `git` commands work (the server uses `process.cwd()`).
 
@@ -91,6 +92,7 @@ Notes:
 Once configured, simply ask Cursor in the chat:
 - "Génère le titre de ma PR"
 - "Analyse ma branche et génère la description de la PR"
+- "Génère le titre et la description complète de ma PR"
 - "Suggère des reviewers pour cette PR"
 
 Cursor will automatically use your MCP tools.
@@ -154,7 +156,21 @@ Available tools
 ```
 - Output: string (markdown ready to paste into your PR).
 
-### 3) suggest_reviewers
+### 3) generate_pr_complete
+- Description: Generate both a conventional PR title and a complete PR description in one operation.
+- Input:
+```
+{
+  "template": "standard",           // "standard" | "detailed" | "minimal" (default: "standard")
+  "language": "fr",                 // "fr" | "en" (default: "fr")
+  "includeStats": true,             // boolean (default: true)
+  "maxTitleLength": 72,             // number | optional, caps title length
+  "baseBranch": "main"              // string | optional, base branch for comparison
+}
+```
+- Output: `{ title: string, description: string }` - Both title and description ready to use.
+
+### 4) suggest_reviewers
 - Description: Suggest reviewers based on contribution history on modified files.
 - Input:
 ```
@@ -164,7 +180,7 @@ Available tools
 ```
 - Output: `{ suggestedReviewers: { author, contributions, reason }[], basedOn: string, error?: string }`.
 
-### 4) generate_pr_title
+### 5) generate_pr_title
 - Description: Generate a conventional PR title based on recent commits and changed files.
 - Input:
 ```
@@ -174,7 +190,7 @@ Available tools
 ```
 - Output: A string like `feat(auth): add refresh token rotation`.
 
-### 5) review
+### 6) review
 - Description: Produce a concise, structured PR code review (markdown, 10–15 lines).
 - Input:
 ```
@@ -210,6 +226,7 @@ src/
 │       └── server.ts              # MCP server (entry point)
 ├── tools/                          # MCP tools (1 file = 1 tool)
 │   ├── analyze-branch.tool.ts
+│   ├── generate-pr-complete.tool.ts
 │   ├── generate-pr-description.tool.ts
 │   ├── generate-pr-title.tool.ts
 │   ├── review.tool.ts
@@ -228,6 +245,7 @@ Examples (MCP Inspector)
 ------------------------
 - `analyze_branch` (defaults) → returns analysis JSON.
 - `generate_pr_description` with `{ "title": "Add feature X", "template": "detailed", "language": "fr" }` → returns a full markdown description.
+- `generate_pr_complete` with `{ "template": "standard", "language": "fr" }` → returns `{ "title": "feat(auth): add OAuth support", "description": "## 🎯 feat(auth): add OAuth support..." }`.
 - `suggest_reviewers` with `{ "limit": 5 }` → returns a sorted list of suggested reviewers.
 
 Troubleshooting
