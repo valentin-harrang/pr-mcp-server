@@ -6,7 +6,7 @@ import { AnalysisResult } from "../core/git/types.js";
  * Analyzes the differences between the current Git branch and a base branch
  */
 export async function executeAnalyzeBranch(
-  baseBranch: string = "main",
+  baseBranch?: string,
   detailed: boolean = true
 ): Promise<AnalysisResult> {
   return analyzeBranch(baseBranch, detailed);

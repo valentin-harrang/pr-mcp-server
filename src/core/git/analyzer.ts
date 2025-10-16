@@ -1,20 +1,21 @@
 import { DiffResultTextFile } from "simple-git";
-import { git } from "./repository.js";
+import { git, detectMainBranch, createGitInstance } from "./repository.js";
 import { AnalysisResult, ReviewersResult } from "./types.js";
 
-/**
- * Analyzes differences between the current branch and a base branch
- */
 export async function analyzeBranch(
-  baseBranch: string = "main",
+  baseBranch?: string,
   detailed: boolean = true
 ): Promise<AnalysisResult> {
   try {
-    const currentBranch = await git.revparse(["--abbrev-ref", "HEAD"]);
-    const logs = await git.log([`${baseBranch}..${currentBranch}`]);
-    const diff = await git.diff([`${baseBranch}...${currentBranch}`, "--stat"]);
-    const diffSummary = await git.diffSummary([
-      `${baseBranch}...${currentBranch}`,
+    const workingDir = process.cwd();
+    const workingGit = createGitInstance(workingDir);
+    const detectedBaseBranch = baseBranch || await detectMainBranch(workingDir);
+    
+    const currentBranch = await workingGit.revparse(["--abbrev-ref", "HEAD"]);
+    const logs = await workingGit.log([`${detectedBaseBranch}..${currentBranch}`]);
+    const diff = await workingGit.diff([`${detectedBaseBranch}...${currentBranch}`, "--stat"]);
+    const diffSummary = await workingGit.diffSummary([
+      `${detectedBaseBranch}...${currentBranch}`,
     ]);
 
     const commitTypes = logs.all.map((commit) => {
@@ -29,7 +30,7 @@ export async function analyzeBranch(
 
     const analysis: AnalysisResult = {
       currentBranch: currentBranch.trim(),
-      baseBranch,
+      baseBranch: detectedBaseBranch,
       totalCommits: logs.total,
       commits: logs.all.map((c) => ({
         hash: c.hash.substring(0, 7),
@@ -54,7 +55,7 @@ export async function analyzeBranch(
     };
 
     if (detailed) {
-      const fullDiff = await git.diff([`${baseBranch}...${currentBranch}`]);
+      const fullDiff = await workingGit.diff([`${detectedBaseBranch}...${currentBranch}`]);
       analysis.hasBreakingChanges = fullDiff.includes("BREAKING CHANGE");
       analysis.hasTests = diffSummary.files.some(
         (f) => f.file.includes("test") || f.file.includes("spec")
@@ -68,19 +69,18 @@ export async function analyzeBranch(
   }
 }
 
-/**
- * Suggests code reviewers based on Git contribution history
- */
 export async function suggestReviewers(
   limit: number = 3,
-  baseBranch: string = "main"
+  baseBranch?: string
 ): Promise<ReviewersResult> {
   try {
     const analysis = await analyzeBranch(baseBranch);
+    const workingDir = process.cwd();
+    const workingGit = createGitInstance(workingDir);
     const fileAuthors = new Map<string, number>();
 
     for (const file of analysis.filesList.slice(0, 10)) {
-      const log = await git.log(["--follow", "--pretty=format:%an", file.file]);
+      const log = await workingGit.log(["--follow", "--pretty=format:%an", file.file]);
       log.all.forEach((commit) => {
         const author = commit.author_name;
         if (author) {

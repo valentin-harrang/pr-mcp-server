@@ -20,7 +20,7 @@ describe("Validation Schemas", () => {
 
     it("should use defaults", () => {
       const result = AnalyzeBranchSchema.parse({});
-      expect(result.baseBranch).toBe("main");
+      expect(result.baseBranch).toBeUndefined();
       expect(result.detailed).toBe(true);
     });
   });
@@ -42,7 +42,7 @@ describe("Validation Schemas", () => {
 
     it("should use defaults", () => {
       const result = GeneratePRSchema.parse({});
-      expect(result.baseBranch).toBe("main");
+      expect(result.baseBranch).toBeUndefined();
       expect(result.template).toBe("standard");
       expect(result.language).toBe("fr");
       expect(result.includeStats).toBe(true);
@@ -90,7 +90,7 @@ describe("Validation Schemas", () => {
   describe("ReviewSchema", () => {
     it("should accept empty object", () => {
       const result = ReviewSchema.parse({});
-      expect(result.baseBranch).toBe("main");
+      expect(result.baseBranch).toBeUndefined();
     });
 
     it("should accept custom baseBranch", () => {
@@ -108,7 +108,7 @@ describe("Validation Schemas", () => {
     it("should accept empty object", () => {
       const result = TitleSchema.parse({});
       expect(result.maxLength).toBeUndefined();
-      expect(result.baseBranch).toBe("main");
+      expect(result.baseBranch).toBeUndefined();
     });
 
     it("should reject maxLength > 200", () => {

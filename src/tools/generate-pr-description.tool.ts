@@ -11,7 +11,7 @@ export async function executeGeneratePR(
   template: TemplateType = "standard",
   language: Language = "fr",
   includeStats: boolean = true,
-  baseBranch: string = "main"
+  baseBranch?: string
 ): Promise<string> {
   try {
     const analysis = await analyzeBranch(baseBranch, true);

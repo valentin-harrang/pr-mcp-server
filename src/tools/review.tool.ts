@@ -10,7 +10,7 @@ function truncateLines(text: string, maxLines: number): string {
  * Tool: review
  * Performs a code review and provides structured feedback
  */
-export async function executeReview(baseBranch: string = "main"): Promise<string> {
+export async function executeReview(baseBranch?: string): Promise<string> {
   const analysis = await analyzeBranch(baseBranch, true);
   const current = analysis.currentBranch;
   const base = analysis.baseBranch || baseBranch;
