@@ -111,6 +111,14 @@ describe("generate-pr-complete tool", () => {
     expect(analyzer.analyzeBranch).toHaveBeenCalledWith("develop", true);
   });
 
+  it("should use auto-detected baseBranch when not provided", async () => {
+    vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
+
+    await executeGenerateComplete();
+
+    expect(analyzer.analyzeBranch).toHaveBeenCalledWith(undefined, true);
+  });
+
   it("should infer 'chore' as fallback type for title", async () => {
     const choreAnalysis = {
       ...mockAnalysis,

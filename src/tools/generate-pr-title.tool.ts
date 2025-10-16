@@ -56,7 +56,7 @@ function inferSubjectFromCommits(messages: string[]): string {
  */
 export async function executeGenerateTitle(
   maxLength?: number,
-  baseBranch: string = "main"
+  baseBranch?: string
 ): Promise<string> {
   const analysis = await analyzeBranch(baseBranch, true);
   const messages = analysis.commits.map((c) => c.message);

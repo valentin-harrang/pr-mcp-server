@@ -66,7 +66,7 @@ export async function executeGenerateComplete(
   language: Language = "fr",
   includeStats: boolean = true,
   maxTitleLength?: number,
-  baseBranch: string = "main"
+  baseBranch?: string
 ): Promise<PRCompleteResult> {
   try {
     const analysis = await analyzeBranch(baseBranch, true);
