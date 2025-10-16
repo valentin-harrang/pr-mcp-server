@@ -1,0 +1,254 @@
+pr-mcp-server
+===============
+
+MCP (Model Context Protocol) server to automate Pull Request creation with AI. Analyzes Git branches, generates descriptions, titles, suggests reviewers, and performs code reviews. Designed to speed up reviews and improve PR quality.
+
+Features
+--------
+- Analyze current Git branch vs a base branch
+- Generate PR descriptions (standard, detailed, minimal templates | EN/FR)
+- Generate conventional PR titles (feat, fix, docs, etc.)
+- Suggest reviewers based on contribution history
+- Automated code review with actionable feedback
+- Ready-to-use with MCP Inspector, Cursor, and Claude Desktop
+
+Requirements
+------------
+- Node.js 18+
+- A Git repository (the server uses `simple-git`)
+
+Install
+-------
+### Local development
+```bash
+npm install
+npm run build
+```
+
+### Global installation (recommended)
+```bash
+npm link
+```
+This makes the `pr-mcp-server` command available globally without needing absolute paths.
+
+Quick start with MCP Inspector
+------------------------------
+After `npm link`, simply run:
+```bash
+npx @modelcontextprotocol/inspector pr-mcp-server
+```
+
+Or for development/debugging with inspector:
+```bash
+npx @modelcontextprotocol/inspector node --inspect ./dist/core/mcp/server.js
+```
+
+- Inspector will open and list the `pr-mcp-server`.
+- Click "List Tools" and try:
+  - `analyze_branch`
+  - `generate_pr_description`
+  - `suggest_reviewers`
+  - `review`
+  - `generate_pr_title`
+
+Tip: Run Inspector inside a Git repository so `git` commands work (the server uses `process.cwd()`).
+
+Use with Cursor
+---------------
+After `npm link`, configure your MCP server in `~/.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "pr-mcp-server": {
+      "command": "pr-mcp-server",
+      "cwd": "{workspaceFolder}"
+    }
+  }
+}
+```
+
+**Alternative**: Use `npx` without global installation:
+```json
+{
+  "mcpServers": {
+    "pr-mcp-server": {
+      "command": "npx",
+      "args": ["-y", "pr-mcp-server"],
+      "cwd": "{workspaceFolder}"
+    }
+  }
+}
+```
+
+**Important**: The `"cwd": "{workspaceFolder}"` parameter ensures the MCP server runs in your project's directory, giving it access to the Git context.
+
+Notes:
+- Restart Cursor after saving the file.
+- Open a Git repository in Cursor for the tools to work.
+- No absolute paths needed!
+
+### Usage in Cursor
+Once configured, simply ask Cursor in the chat:
+- "Génère le titre de ma PR"
+- "Analyse ma branche et génère la description de la PR"
+- "Suggère des reviewers pour cette PR"
+
+Cursor will automatically use your MCP tools.
+
+Use with Claude Desktop
+-----------------------
+After `npm link`, configure Claude Desktop (macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "pr-mcp-server": {
+      "command": "pr-mcp-server"
+    }
+  }
+}
+```
+
+**Alternative**: Use `npx` without global installation:
+```json
+{
+  "mcpServers": {
+    "pr-mcp-server": {
+      "command": "npx",
+      "args": ["-y", "pr-mcp-server"]
+    }
+  }
+}
+```
+
+**Note**: Claude Desktop doesn't support `{workspaceFolder}`. The MCP server will run in Claude's default directory, so you'll need to specify the repository path when calling tools, or use the MCP server from within a specific project context.
+
+Restart Claude Desktop. In a new conversation, the `pr-mcp-server` tools will be available.
+
+Notes:
+- Ensure `dist/core/mcp/server.js` exists (run `npm run build`).
+- The server uses `process.cwd()`, so context depends on where Claude Desktop executes the command.
+
+Available tools
+---------------
+### 1) analyze_branch
+- Description: Analyze differences between the current branch and a base branch.
+- Input:
+```
+{
+  "baseBranch": "main",   // string, default: "main"
+  "detailed": true         // boolean, default: true
+}
+```
+- Output: AnalysisResult with `currentBranch`, `baseBranch`, `totalCommits`, `commits[]`, `filesChanged`, `insertions`, `deletions`, `filesList[]`, `commitTypes[]`, `diffStats`, `hasBreakingChanges?`, `hasTests?`.
+
+### 2) generate_pr_description
+- Description: Generate a PR description from the analysis.
+- Input:
+```
+{
+  "title": "My awesome PR",         // string | optional
+  "template": "standard",           // "standard" | "detailed" | "minimal" (default: "standard")
+  "language": "fr",                 // "fr" | "en" (default: "fr")
+  "includeStats": true               // boolean (default: true)
+}
+```
+- Output: string (markdown ready to paste into your PR).
+
+### 3) suggest_reviewers
+- Description: Suggest reviewers based on contribution history on modified files.
+- Input:
+```
+{
+  "limit": 3    // number, 1..20 (default: 3)
+}
+```
+- Output: `{ suggestedReviewers: { author, contributions, reason }[], basedOn: string, error?: string }`.
+
+### 4) generate_pr_title
+- Description: Generate a conventional PR title based on recent commits and changed files.
+- Input:
+```
+{
+  "maxLength": 72   // optional, number, caps title length (e.g., 72)
+}
+```
+- Output: A string like `feat(auth): add refresh token rotation`.
+
+### 5) review
+- Description: Produce a concise, structured PR code review (markdown, 10–15 lines).
+- Input:
+```
+{}
+```
+- Output: Raw markdown using exactly this structure (copy/paste-ready):
+```
+## Summary
+[one-line summary]
+
+## Critical Issues  
+- [issue with `code` references]
+
+## Key Suggestions
+- [suggestion 1]
+- [suggestion 2]
+
+## Decision
+REQUEST_CHANGES - [brief reason]
+```
+
+Architecture
+------------
+```
+src/
+├── core/                           # Core infrastructure
+│   ├── git/
+│   │   ├── analyzer.ts            # Git branch analysis
+│   │   ├── repository.ts          # Git singleton instance
+│   │   └── types.ts               # Git-related types
+│   └── mcp/
+│       ├── handlers.ts            # MCP tool handlers
+│       └── server.ts              # MCP server (entry point)
+├── tools/                          # MCP tools (1 file = 1 tool)
+│   ├── analyze-branch.tool.ts
+│   ├── generate-pr-description.tool.ts
+│   ├── generate-pr-title.tool.ts
+│   ├── review.tool.ts
+│   └── suggest-reviewers.tool.ts
+├── templates/                      # PR templates
+│   └── pr-templates.ts
+├── validation/                     # Validation and types
+│   ├── schemas.ts                 # Zod validation schemas
+│   └── types.ts                   # Shared types
+└── __tests__/                      # Tests (mirrors src structure)
+```
+
+The project uses ESM (Node16) — local imports use `.js` extensions after TypeScript compilation.
+
+Examples (MCP Inspector)
+------------------------
+- `analyze_branch` (defaults) → returns analysis JSON.
+- `generate_pr_description` with `{ "title": "Add feature X", "template": "detailed", "language": "fr" }` → returns a full markdown description.
+- `suggest_reviewers` with `{ "limit": 5 }` → returns a sorted list of suggested reviewers.
+
+Troubleshooting
+---------------
+- "Not a git repository": run the server inside a Git repo.
+- ESM import issues: use Node 18+ and build the project (`dist/`).
+- Permission errors: ensure your shell has access to the repo.
+
+Useful scripts
+--------------
+```
+npm run build        # compile TypeScript to dist/
+npm start            # start the MCP server
+npm test             # run tests
+npm run test:watch   # run tests in watch mode
+npm run test:ui      # run tests with UI
+npm run dev          # run in development mode
+```
+
+License
+-------
+MIT
+
+

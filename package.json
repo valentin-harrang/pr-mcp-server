@@ -1,0 +1,40 @@
+{
+  "name": "pr-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server pour générer automatiquement des Pull Requests parfaites",
+  "main": "dist/core/mcp/server.js",
+  "type": "module",
+  "bin": {
+    "pr-mcp-server": "./dist/core/mcp/server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/core/mcp/server.js",
+    "dev": "tsx src/core/mcp/server.ts",
+    "inspect": "tsx src/core/mcp/server.ts --inspect",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "mcp",
+    "git",
+    "pull-request",
+    "automation"
+  ],
+  "author": "Valentin Harrang",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "simple-git": "^3.28.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@vitest/ui": "^3.2.4",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
