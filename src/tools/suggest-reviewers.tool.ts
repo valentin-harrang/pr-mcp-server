@@ -7,7 +7,7 @@ import { ReviewersResult } from "../core/git/types.js";
  */
 export async function executeSuggestReviewers(
   limit: number = 3,
-  baseBranch: string = "main"
+  baseBranch?: string
 ): Promise<ReviewersResult> {
   return suggestReviewers(limit, baseBranch);
 }

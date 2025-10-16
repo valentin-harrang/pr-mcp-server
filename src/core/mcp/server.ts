@@ -28,14 +28,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "analyze_branch",
       description:
-        "Analyzes the differences between the current Git branch and a base branch (main by default). Automatically detects the current Git repository from the working directory. Use this when the user asks to analyze a branch, check changes, or understand what's in the current branch.",
+        "Analyzes the differences between the current Git branch and a base branch. Automatically detects the main branch (dev/main/master) and current Git repository from the working directory. Use this when the user asks to analyze a branch, check changes, or understand what's in the current branch.",
       inputSchema: {
         type: "object",
         properties: {
           baseBranch: {
             type: "string",
-            description: "Base branch for comparison",
-            default: "main",
+            description: "Base branch for comparison (auto-detected if not provided)",
           },
           detailed: {
             type: "boolean",
