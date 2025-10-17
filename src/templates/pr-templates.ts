@@ -1,9 +1,12 @@
 import { CommitInfo, FileChange } from "../core/git/types.js";
 import { TemplateData, PRTemplates } from "../validation/types.js";
+import { selectGif } from "./gif-selector.js";
 
 export const prTemplates: PRTemplates = {
   standard: {
-    fr: (data: TemplateData) => `## 🎯 ${
+    fr: (data: TemplateData) => `![GIF](${selectGif(data)})
+
+## 🎯 ${
       data.title || `Update from ${data.currentBranch}`
     }
 
@@ -48,7 +51,9 @@ ${
       }\n\`\`\``
     : ""
 }`,
-    en: (data: TemplateData) => `## 🎯 ${
+    en: (data: TemplateData) => `![GIF](${selectGif(data)})
+
+## 🎯 ${
       data.title || `Update from ${data.currentBranch}`
     }
 
@@ -95,14 +100,18 @@ ${
 }`,
   },
   minimal: {
-    fr: (data: TemplateData) => `## ${data.title || data.currentBranch}
+    fr: (data: TemplateData) => `![GIF](${selectGif(data)})
+
+## ${data.title || data.currentBranch}
 
 ${data.commits.map((c: CommitInfo) => `- ${c.message}`).join("\n")}
 
 **Impact:** ${data.filesChanged} files | +${data.insertions} -${
       data.deletions
     }`,
-    en: (data: TemplateData) => `## ${data.title || data.currentBranch}
+    en: (data: TemplateData) => `![GIF](${selectGif(data)})
+
+## ${data.title || data.currentBranch}
 
 ${data.commits.map((c: CommitInfo) => `- ${c.message}`).join("\n")}
 

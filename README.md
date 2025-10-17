@@ -8,6 +8,7 @@ Features
 - Analyze current Git branch vs a base branch
 - Generate PR descriptions (standard, detailed, minimal templates | EN/FR)
 - Generate conventional PR titles (feat, fix, docs, etc.)
+- **🎉 Smart GIF selection** - Automatically adds relevant GIFs based on work type
 - Suggest reviewers based on contribution history
 - Automated code review with actionable feedback
 - Ready-to-use with MCP Inspector, Cursor, and Claude Desktop
@@ -212,6 +213,37 @@ Available tools
 REQUEST_CHANGES - [brief reason]
 ```
 
+Smart GIF Selection
+-------------------
+The PR templates now include **smart GIF selection** that automatically chooses appropriate GIFs based on the type of work performed:
+
+### 🎯 **GIF Categories**
+- **Feature development** → Building/coding GIFs
+- **Bug fixes** → Problem-solving GIFs  
+- **Testing** → Quality assurance GIFs
+- **Refactoring** → Code improvement GIFs
+- **Documentation** → Writing/learning GIFs
+- **Performance** → Speed/optimization GIFs
+- **Breaking changes** → Major update GIFs
+- **Default** → General development GIFs
+
+### 🎲 **How it works**
+1. **Analyzes commit types** from your branch
+2. **Detects breaking changes** and test additions
+3. **Selects appropriate category** based on work patterns
+4. **Randomly picks a GIF** from the relevant category
+5. **Adds GIF to PR description** automatically
+
+### ✨ **Example**
+```markdown
+![GIF](https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif)
+
+## 🎯 feat(auth): add OAuth support
+...
+```
+
+The GIF selection is **intelligent** and **contextual** - feature commits get building GIFs, bug fixes get problem-solving GIFs, etc. This makes your PRs more engaging and fun! 🚀
+
 Architecture
 ------------
 ```
@@ -232,6 +264,7 @@ src/
 │   ├── review.tool.ts
 │   └── suggest-reviewers.tool.ts
 ├── templates/                      # PR templates
+│   ├── gif-selector.ts            # Smart GIF selection
 │   └── pr-templates.ts
 ├── validation/                     # Validation and types
 │   ├── schemas.ts                 # Zod validation schemas
