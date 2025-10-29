@@ -69,6 +69,45 @@ export async function analyzeBranch(
   }
 }
 
+/**
+ * Extract GitHub username from git email or name
+ */
+function extractGitHubUsername(email: string, name: string): string | null {
+  // Try to extract from GitHub email formats:
+  // - username@users.noreply.github.com
+  // - 12345+username@users.noreply.github.com
+  const noreplyMatch = email.match(/(?:\d+\+)?([^@]+)@users\.noreply\.github\.com/);
+  if (noreplyMatch) {
+    return noreplyMatch[1];
+  }
+  
+  // Try to extract username from email local part (best effort)
+  // e.g., john.doe@company.com -> johndoe (without separators first, then with hyphen)
+  const emailLocal = email.split('@')[0];
+  if (emailLocal && emailLocal.length > 0) {
+    // GitHub usernames: Try without separators first (most common)
+    const withoutSeparators = emailLocal.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (withoutSeparators && withoutSeparators.length >= 3) {
+      return withoutSeparators;
+    }
+    
+    // Fallback: use hyphens for separators
+    const withHyphens = emailLocal.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+    if (withHyphens) {
+      return withHyphens;
+    }
+  }
+  
+  // Fallback: try to use the name (remove spaces, no hyphens)
+  const nameWithoutSpaces = name.replace(/\s+/g, '').toLowerCase();
+  if (nameWithoutSpaces && nameWithoutSpaces.length >= 3) {
+    return nameWithoutSpaces;
+  }
+  
+  // Last resort: use hyphens
+  return name.replace(/\s+/g, '-').toLowerCase();
+}
+
 export async function suggestReviewers(
   limit: number = 3,
   baseBranch?: string
@@ -77,38 +116,88 @@ export async function suggestReviewers(
     const analysis = await analyzeBranch(baseBranch);
     const workingDir = process.cwd();
     const workingGit = createGitInstance(workingDir);
-    const fileAuthors = new Map<string, number>();
+    const fileAuthors = new Map<string, { email: string; name: string; count: number }>();
 
-    for (const file of analysis.filesList.slice(0, 10)) {
-      const log = await workingGit.log(["--follow", "--pretty=format:%an", file.file]);
-      log.all.forEach((commit) => {
-        const author = commit.author_name;
-        if (author) {
-          fileAuthors.set(author, (fileAuthors.get(author) || 0) + 1);
-        }
-      });
+    if (analysis.filesList.length === 0) {
+      return {
+        suggestedReviewers: [],
+        basedOn: "No files were modified in this branch",
+        error: "No modified files to analyze",
+      };
     }
 
-    const sorted = Array.from(fileAuthors.entries())
-      .sort((a, b) => b[1] - a[1])
+    const filesToAnalyze = analysis.filesList.slice(0, 10);
+    let totalCommitsAnalyzed = 0;
+
+    for (const file of filesToAnalyze) {
+      try {
+        // Get commit history for this file with author info
+        const log = await workingGit.log(["--follow", file.file]);
+        
+        if (log.all && log.all.length > 0) {
+          totalCommitsAnalyzed += log.all.length;
+          
+          log.all.forEach((commit) => {
+            // Use native simple-git fields
+            const name = commit.author_name;
+            const email = commit.author_email;
+            
+            if (name && email) {
+              const key = `${name}|${email}`;
+              const existing = fileAuthors.get(key);
+              if (existing) {
+                existing.count++;
+              } else {
+                fileAuthors.set(key, { email, name, count: 1 });
+              }
+            }
+          });
+        }
+      } catch (fileError) {
+        // Skip files that cause errors (might be new files)
+        console.warn(`Could not analyze history for ${file.file}: ${fileError}`);
+      }
+    }
+
+    if (totalCommitsAnalyzed === 0) {
+      return {
+        suggestedReviewers: [],
+        basedOn: `Analyzed ${filesToAnalyze.length} file(s), but found no Git history (likely new files)`,
+        error: "No commit history found for modified files",
+      };
+    }
+
+    const sorted = Array.from(fileAuthors.values())
+      .sort((a, b) => b.count - a.count)
       .slice(0, limit);
 
+    if (sorted.length === 0) {
+      return {
+        suggestedReviewers: [],
+        basedOn: `Analyzed ${totalCommitsAnalyzed} commit(s) from ${filesToAnalyze.length} file(s), but no valid contributors found`,
+        error: "No valid contributors extracted from Git history",
+      };
+    }
+
     return {
-      suggestedReviewers: sorted.map(([author, contributions]) => ({
-        author,
-        contributions,
-        reason: `Contributed ${contributions} times to modified files`,
-      })),
-      basedOn: `Analysis of ${Math.min(
+      suggestedReviewers: sorted.map((author) => {
+        const username = extractGitHubUsername(author.email, author.name);
+        return {
+          author: username || author.name,
+          contributions: author.count,
+          reason: `Contributed ${author.count} times to modified files (${author.email})`,
+        };
+      }),
+      basedOn: `Analyzed ${totalCommitsAnalyzed} commit(s) from ${Math.min(
         10,
         analysis.filesList.length
-      )} modified files`,
+      )} modified file(s)`,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       suggestedReviewers: [],
-      basedOn: "Unable to determine reviewers",
+      basedOn: "Unable to determine reviewers due to error",
       error: errorMessage,
     };
   }

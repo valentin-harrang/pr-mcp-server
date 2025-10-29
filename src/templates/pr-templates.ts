@@ -155,8 +155,6 @@ ${(() => {
 - Service restart if necessary
 - Post-deployment verification
 
-**Gif:**
-
 ![PR GIF](${await selectGif(data)})`,
   },
   minimal: {

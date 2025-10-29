@@ -136,16 +136,16 @@ describe("Git Analyzer", () => {
 
       mockGitInstance.log.mockResolvedValue({
         all: [
-          { author_name: "Alice" },
-          { author_name: "Bob" },
-          { author_name: "Alice" },
+          { author_name: "Alice", author_email: "alice@example.com" },
+          { author_name: "Bob", author_email: "bob@example.com" },
+          { author_name: "Alice", author_email: "alice@example.com" },
         ],
       });
 
       const result = await suggestReviewers(2, "main");
 
       expect(result.suggestedReviewers).toHaveLength(2);
-      expect(result.suggestedReviewers[0].author).toBe("Alice");
+      expect(result.suggestedReviewers[0].author).toBe("alice");
       expect(result.suggestedReviewers[0].contributions).toBe(2);
     });
 

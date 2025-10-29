@@ -62,4 +62,6 @@ export const CreatePRSchema = z.object({
   baseBranch: z.string().optional(),
   draft: z.boolean().default(false),
   githubToken: z.string().optional(),
+  addReviewers: z.boolean().default(true),
+  maxReviewers: z.number().int().positive().max(20).default(3),
 });

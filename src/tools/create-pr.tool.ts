@@ -2,6 +2,7 @@ import { Octokit } from "@octokit/rest";
 import { createGitInstance, getGitHubRepoInfo, detectMainBranch } from "../core/git/repository.js";
 import { executeGenerateTitle } from "./generate-pr-title.tool.js";
 import { executeGeneratePR } from "./generate-pr-description.tool.js";
+import { executeSuggestReviewers } from "./suggest-reviewers.tool.js";
 import { Language, TemplateType } from "../validation/types.js";
 
 export interface CreatePRResult {
@@ -10,6 +11,9 @@ export interface CreatePRResult {
   title: string;
   state: string;
   action: 'created' | 'reopened' | 'updated';
+  reviewers?: string[];
+  reviewersAdded?: number;
+  reviewerNote?: string;
 }
 
 /**
@@ -17,6 +21,7 @@ export interface CreatePRResult {
  * Creates a Pull Request on GitHub using generate-pr-title and generate-pr-description.
  * Smart handling: If a PR already exists for the branch (open or closed), it will be updated/reopened
  * instead of failing with a duplicate error.
+ * Can automatically suggest and add reviewers based on Git history.
  */
 export async function executeCreatePR(
   template: TemplateType = "standard",
@@ -25,7 +30,9 @@ export async function executeCreatePR(
   maxTitleLength?: number,
   baseBranch?: string,
   draft: boolean = false,
-  githubToken?: string
+  githubToken?: string,
+  addReviewers: boolean = true,
+  maxReviewers: number = 3
 ): Promise<CreatePRResult> {
   try {
     // Get GitHub token (supports both personal access tokens 'ghp_' and enterprise tokens 'github_pat_')
@@ -136,12 +143,101 @@ export async function executeCreatePR(
       action = 'created';
     }
 
+    // Add reviewers if requested
+    let reviewersAdded: string[] = [];
+    let reviewerError: string | undefined;
+    
+    if (addReviewers) {
+      try {
+        const reviewersResult = await executeSuggestReviewers(maxReviewers, detectedBaseBranch);
+        
+        if (reviewersResult.error) {
+          reviewerError = `${reviewersResult.basedOn}: ${reviewersResult.error}`;
+          console.warn(`Could not add reviewers: ${reviewerError}`);
+        } else if (reviewersResult.suggestedReviewers.length === 0) {
+          reviewerError = `${reviewersResult.basedOn}. No reviewers could be suggested.`;
+          console.warn(reviewerError);
+        } else {
+          // Filter out the PR author from reviewers
+          const currentUser = (await octokit.rest.users.getAuthenticated()).data.login;
+          console.error(`[REVIEWERS] Current GitHub user (PR author): ${currentUser}`);
+          
+          const allSuggested = reviewersResult.suggestedReviewers.map(r => r.author);
+          console.error(`[REVIEWERS] All suggested reviewers: ${allSuggested.join(', ')}`);
+          
+          const reviewerLogins = allSuggested
+            .filter(author => author.toLowerCase() !== currentUser.toLowerCase());
+          console.error(`[REVIEWERS] After filtering PR author: ${reviewerLogins.join(', ') || '(none - all filtered out)'}`);
+          
+          if (reviewerLogins.length === 0) {
+            reviewerError = `${reviewersResult.basedOn}. Found contributor(s): ${allSuggested.join(', ')} - but all were filtered out (you are the only/main contributor)`;
+            console.warn(`[REVIEWERS] ${reviewerError}`);
+          } else {
+            try {
+              console.error(`[REVIEWERS] Attempting to add ${reviewerLogins.length} reviewer(s): ${reviewerLogins.join(', ')}`);
+              console.error(`[REVIEWERS] PR: ${repoInfo.owner}/${repoInfo.repo}#${pr.number}`);
+              
+              const response = await octokit.rest.pulls.requestReviewers({
+                owner: repoInfo.owner,
+                repo: repoInfo.repo,
+                pull_number: pr.number,
+                reviewers: reviewerLogins,
+              });
+              
+              // Debug: Log full response
+              console.error(`[REVIEWERS] API Response Status: ${response.status}`);
+              console.error(`[REVIEWERS] Requested reviewers in response:`, JSON.stringify(response.data.requested_reviewers?.map(r => r.login)));
+              
+              // Verify reviewers were actually added by checking the response
+              const actuallyAdded = response.data.requested_reviewers?.map(r => r.login) || [];
+              
+              if (actuallyAdded.length === 0) {
+                // API call succeeded but no reviewers were added (usernames don't exist)
+                const errorDetails = `Response status: ${response.status}, Data: ${JSON.stringify(response.data, null, 2)}`;
+                console.error(`[REVIEWERS] No reviewers added. ${errorDetails}`);
+                reviewerError = `${reviewersResult.basedOn}. Attempted to add: ${reviewerLogins.join(', ')} - but GitHub couldn't add any of them (API returned 0 reviewers). Possible reasons: (1) These usernames don't exist on GitHub, (2) They are already reviewers, (3) They are the PR author, (4) Insufficient permissions. Try manually adding '${reviewerLogins[0]}' on GitHub to verify the username exists.`;
+                console.warn(reviewerError);
+              } else if (actuallyAdded.length < reviewerLogins.length) {
+                // Some reviewers were added, but not all
+                const notAdded = reviewerLogins.filter(r => !actuallyAdded.includes(r));
+                reviewersAdded = actuallyAdded;
+                reviewerError = `Partially successful: Added ${actuallyAdded.join(', ')} but couldn't add ${notAdded.join(', ')} (likely PR author or already a reviewer)`;
+                console.warn(`[REVIEWERS] ${reviewerError}`);
+                console.error(`[REVIEWERS] Successfully added ${reviewersAdded.length} reviewer(s): ${reviewersAdded.join(', ')}`);
+              } else {
+                // All reviewers were added successfully
+                reviewersAdded = actuallyAdded;
+                console.error(`[REVIEWERS] ✅ Successfully added ${reviewersAdded.length} reviewer(s): ${reviewersAdded.join(', ')}`);
+              }
+            } catch (githubError: unknown) {
+              const errorMsg = githubError instanceof Error ? githubError.message : String(githubError);
+              const errorStack = githubError instanceof Error ? githubError.stack : '';
+              const suggestedDetails = reviewersResult.suggestedReviewers
+                .map(r => `${r.author} (${r.contributions} contributions)`)
+                .join(', ');
+              reviewerError = `${reviewersResult.basedOn}. Suggested: ${suggestedDetails}. GitHub API error: ${errorMsg}. These usernames may not exist on GitHub or you may lack permission to add them.`;
+              console.error(`[REVIEWERS] GitHub API Error:`, errorMsg);
+              console.error(`[REVIEWERS] Stack:`, errorStack);
+              console.warn(reviewerError);
+            }
+          }
+        }
+      } catch (error) {
+        // Don't fail the PR creation if reviewer addition fails
+        reviewerError = `Unexpected error: ${error instanceof Error ? error.message : String(error)}`;
+        console.warn(`Could not add reviewers: ${reviewerError}`);
+      }
+    }
+
     return {
       url: pr.html_url,
       number: pr.number,
       title: pr.title,
       state: pr.state,
       action,
+      reviewers: reviewersAdded.length > 0 ? reviewersAdded : undefined,
+      reviewersAdded: reviewersAdded.length,
+      reviewerNote: reviewerError || (reviewersAdded.length > 0 ? undefined : "No reviewers were automatically added"),
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

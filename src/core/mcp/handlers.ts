@@ -134,7 +134,9 @@ export async function handleToolRequest(
           validated.maxTitleLength,
           validated.baseBranch,
           validated.draft,
-          validated.githubToken
+          validated.githubToken,
+          validated.addReviewers,
+          validated.maxReviewers
         );
         return {
           content: [

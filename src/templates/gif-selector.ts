@@ -4,6 +4,9 @@ import { AnalysisResult } from "../core/git/types.js";
 const GIPHY_API_KEY = "4KkFaNbs9aFyyrBtX9eq29xlEfM17D66";
 const GIPHY_API_BASE_URL = "https://api.giphy.com/v1/gifs";
 
+// Check if GIFs are disabled via environment variable
+const DISABLE_GIFS = process.env.DISABLE_GIFS === "true" || process.env.DISABLE_GIFS === "1";
+
 // Type definitions for Giphy API response
 interface GiphyImage {
   url: string;
@@ -53,25 +56,55 @@ const GIF_SEARCH_TERMS: Record<string, string[]> = {
 // Fallback GIF URL in case API fails
 const FALLBACK_GIF_URL = "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif";
 
+// Track rate limit to avoid spamming API
+let isRateLimited = false;
+let rateLimitResetTime = 0;
+
 /**
  * Fetches a random GIF from Giphy API based on search term
  */
 async function fetchGifFromGiphy(searchTerm: string): Promise<string> {
+  // If GIFs are disabled, return fallback immediately
+  if (DISABLE_GIFS) {
+    return FALLBACK_GIF_URL;
+  }
+  
+  // Check if we're currently rate limited
+  if (isRateLimited && Date.now() < rateLimitResetTime) {
+    // Silently return fallback without logging during rate limit period
+    return FALLBACK_GIF_URL;
+  }
+  
   try {
     const searchQuery = encodeURIComponent(searchTerm);
     const url = `${GIPHY_API_BASE_URL}/search?api_key=${GIPHY_API_KEY}&q=${searchQuery}&limit=25&rating=g`;
     
     const response = await fetch(url);
     
-    if (!response.ok) {
-      console.warn(`Giphy API request failed with status ${response.status}`);
+    if (response.status === 429) {
+      // Rate limit hit - set flag and wait 1 hour before trying again
+      isRateLimited = true;
+      rateLimitResetTime = Date.now() + (60 * 60 * 1000); // 1 hour
+      console.error(`[GIF] Giphy API rate limit reached (429). Using fallback GIFs for the next hour. This won't affect PR creation.`);
       return FALLBACK_GIF_URL;
     }
+    
+    if (!response.ok) {
+      // Other errors (not rate limit) - log but don't spam
+      if (!isRateLimited) {
+        console.warn(`[GIF] Giphy API request failed with status ${response.status}. Using fallback GIF.`);
+      }
+      return FALLBACK_GIF_URL;
+    }
+    
+    // Reset rate limit flag on successful request
+    isRateLimited = false;
+    rateLimitResetTime = 0;
     
     const data = await response.json() as GiphySearchResponse;
     
     if (!data.data || data.data.length === 0) {
-      console.warn(`No GIFs found for search term: ${searchTerm}`);
+      // No results found - use fallback silently
       return FALLBACK_GIF_URL;
     }
     
@@ -82,7 +115,10 @@ async function fetchGifFromGiphy(searchTerm: string): Promise<string> {
     // Return the URL of the GIF (use original or downsized_medium)
     return gif.images?.original?.url || gif.images?.downsized_medium?.url || FALLBACK_GIF_URL;
   } catch (error) {
-    console.warn(`Error fetching GIF from Giphy: ${error}`);
+    // Network or parsing errors - fail silently with fallback
+    if (!isRateLimited) {
+      console.warn(`[GIF] Error fetching GIF from Giphy: ${error}. Using fallback.`);
+    }
     return FALLBACK_GIF_URL;
   }
 }

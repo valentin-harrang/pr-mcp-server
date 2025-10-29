@@ -151,7 +151,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "create_pr",
       description:
-        "Creates a Pull Request on GitHub using generate_pr_title for the title and generate_pr_description for the description. Automatically analyzes the current Git branch from the working directory and creates the PR. Requires GITHUB_TOKEN environment variable or githubToken parameter. Use this when the user asks to create a PR, open a PR, or submit a PR to GitHub.",
+        "Creates a Pull Request on GitHub using generate_pr_title for the title and generate_pr_description for the description. Automatically analyzes the current Git branch from the working directory and creates the PR. Can automatically suggest and add reviewers based on Git history. Requires GITHUB_TOKEN environment variable or githubToken parameter. Use this when the user asks to create a PR, open a PR, or submit a PR to GitHub.",
       inputSchema: {
         type: "object",
         properties: {
@@ -188,6 +188,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           githubToken: {
             type: "string",
             description: "GitHub token for authentication (optional, defaults to GITHUB_TOKEN env var)",
+          },
+          addReviewers: {
+            type: "boolean",
+            description: "Automatically suggest and add reviewers based on Git history",
+            default: true,
+          },
+          maxReviewers: {
+            type: "number",
+            description: "Maximum number of reviewers to add (1-20)",
+            default: 3,
           },
         },
       },
