@@ -95,6 +95,7 @@ Once configured, simply ask Cursor in the chat:
 - "Analyse ma branche et génère la description de la PR"
 - "Génère le titre et la description complète de ma PR"
 - "Suggère des reviewers pour cette PR"
+- "Crée une PR sur GitHub" (requires `GITHUB_TOKEN` environment variable)
 
 Cursor will automatically use your MCP tools.
 
@@ -213,6 +214,39 @@ Available tools
 REQUEST_CHANGES - [brief reason]
 ```
 
+### 7) create_pr
+- Description: Creates a Pull Request on GitHub using `generate_pr_title` for the title and `generate_pr_description` for the description. Automatically analyzes the current Git branch and creates the PR on GitHub.
+- **Prerequisites:**
+  - Set `GITHUB_TOKEN` environment variable with a GitHub token (or pass `githubToken` parameter)
+    - Supports **Personal Access Tokens** (starts with `ghp_`)
+    - Supports **Enterprise Tokens** (starts with `github_pat_`)
+  - Your branch must be pushed to the remote repository (`git push -u origin <branch-name>`)
+  - Repository must have a remote named `origin` pointing to GitHub
+- Input:
+```
+{
+  "template": "standard",           // "standard" | "detailed" | "minimal" (default: "standard")
+  "language": "fr",                 // "fr" | "en" (default: "fr")
+  "includeStats": true,             // boolean (default: true)
+  "maxTitleLength": 72,             // number | optional, caps title length
+  "baseBranch": "main",             // string | optional, base branch for comparison
+  "draft": false,                   // boolean (default: false) - create PR as draft
+  "githubToken": "ghp_..."          // string | optional, defaults to GITHUB_TOKEN env var
+                                      // Can be personal token (ghp_...) or enterprise token (github_pat_...)
+}
+```
+- Output: `{ url: string, number: number, title: string, state: string }` - PR details with link to the created PR.
+
+**Example:**
+```json
+{
+  "url": "https://github.com/owner/repo/pull/123",
+  "number": 123,
+  "title": "feat(auth): add OAuth support",
+  "state": "open"
+}
+```
+
 Smart GIF Selection
 -------------------
 The PR templates now include **smart GIF selection** that automatically chooses appropriate GIFs based on the type of work performed:
@@ -258,6 +292,7 @@ src/
 │       └── server.ts              # MCP server (entry point)
 ├── tools/                          # MCP tools (1 file = 1 tool)
 │   ├── analyze-branch.tool.ts
+│   ├── create-pr.tool.ts
 │   ├── generate-pr-complete.tool.ts
 │   ├── generate-pr-description.tool.ts
 │   ├── generate-pr-title.tool.ts
@@ -281,11 +316,63 @@ Examples (MCP Inspector)
 - `generate_pr_complete` with `{ "template": "standard", "language": "fr" }` → returns `{ "title": "feat(auth): add OAuth support", "description": "## 🎯 feat(auth): add OAuth support..." }`.
 - `suggest_reviewers` with `{ "limit": 5 }` → returns a sorted list of suggested reviewers.
 
+Testing create_pr tool
+-----------------------
+To test the `create_pr` tool, you need:
+
+1. **Get a GitHub Token:**
+   - **Personal Access Token** (starts with `ghp_`):
+     - Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+     - Generate a new token with `repo` scope
+   - **Enterprise Token** (starts with `github_pat_`):
+     - Use your organization's enterprise token with `repo` scope
+   - Copy the token
+
+2. **Set the token as environment variable:**
+   ```bash
+   # For personal access token
+   export GITHUB_TOKEN=ghp_your_token_here
+   
+   # For enterprise token
+   export GITHUB_TOKEN=github_pat_your_token_here
+   ```
+
+3. **Ensure your branch is pushed:**
+   ```bash
+   git push -u origin your-branch-name
+   ```
+
+4. **Test with MCP Inspector:**
+   ```bash
+   # In a Git repository directory
+   GITHUB_TOKEN=ghp_your_token_here npx @modelcontextprotocol/inspector pr-mcp-server
+   ```
+   Then call `create_pr` with:
+   ```json
+   {
+     "template": "standard",
+     "language": "fr",
+     "draft": false
+   }
+   ```
+
+5. **Test with Cursor:**
+   - Set `GITHUB_TOKEN` in your environment
+   - In Cursor chat, ask: "Crée une PR sur GitHub"
+   - The tool will automatically generate title and description, then create the PR
+
+**Common errors:**
+- `GitHub token is required`: Set `GITHUB_TOKEN` environment variable
+- `Branch does not exist on remote`: Push your branch first with `git push -u origin <branch>`
+- `No remote URL found for 'origin'`: Ensure your Git repo has a GitHub remote configured
+
 Troubleshooting
 ---------------
 - "Not a git repository": run the server inside a Git repo.
 - ESM import issues: use Node 18+ and build the project (`dist/`).
 - Permission errors: ensure your shell has access to the repo.
+- "GitHub token is required": Set `GITHUB_TOKEN` environment variable for `create_pr` tool.
+- "Branch does not exist on remote": Push your branch before creating a PR.
 
 Useful scripts
 --------------

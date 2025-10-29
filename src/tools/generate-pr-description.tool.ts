@@ -24,7 +24,7 @@ export async function executeGeneratePR(
     };
 
     const templateFunc = prTemplates[template][language];
-    return templateFunc(data);
+    return await templateFunc(data);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Error generating PR description: ${errorMessage}`);

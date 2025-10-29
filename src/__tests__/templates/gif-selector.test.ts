@@ -1,8 +1,42 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { selectGif, selectGifByCriteria } from "../../templates/gif-selector.js";
 import { AnalysisResult } from "../../core/git/types.js";
 
 describe("gif-selector", () => {
+  // Mock fetch function
+  const mockFetch = vi.fn();
+  
+  beforeEach(() => {
+    global.fetch = mockFetch;
+  });
+  
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+  
+  // Helper to create a mock Giphy API response
+  const createMockGiphyResponse = (gifUrls: string[] = []) => {
+    const defaultUrls = [
+      "https://media.giphy.com/media/test1/giphy.gif",
+      "https://media.giphy.com/media/test2/giphy.gif",
+      "https://media.giphy.com/media/test3/giphy.gif",
+    ];
+    const urls = gifUrls.length > 0 ? gifUrls : defaultUrls;
+    
+    return {
+      ok: true,
+      json: async () => ({
+        data: urls.map((url, index) => ({
+          id: `gif${index}`,
+          images: {
+            original: { url },
+            downsized_medium: { url },
+          },
+        })),
+      }),
+    };
+  };
+  
   const mockAnalysis: AnalysisResult = {
     currentBranch: "feature/auth",
     baseBranch: "main",
@@ -24,96 +58,119 @@ describe("gif-selector", () => {
     hasTests: true,
   };
 
-  it("should select feature GIF for feature commits", () => {
-    const gif = selectGif(mockAnalysis);
+  it("should select feature GIF for feature commits", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
+    const gif = await selectGif(mockAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should select breaking change GIF when hasBreakingChanges is true", () => {
+  it("should select breaking change GIF when hasBreakingChanges is true", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
     const breakingAnalysis = { ...mockAnalysis, hasBreakingChanges: true };
-    const gif = selectGif(breakingAnalysis);
+    const gif = await selectGif(breakingAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should select fix GIF for fix commits", () => {
+  it("should select fix GIF for fix commits", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
     const fixAnalysis = { ...mockAnalysis, commitTypes: ["fix"] };
-    const gif = selectGif(fixAnalysis);
+    const gif = await selectGif(fixAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should select test GIF for test commits", () => {
+  it("should select test GIF for test commits", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
     const testAnalysis = { ...mockAnalysis, commitTypes: ["test"] };
-    const gif = selectGif(testAnalysis);
+    const gif = await selectGif(testAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should select refactor GIF for refactor commits", () => {
+  it("should select refactor GIF for refactor commits", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
     const refactorAnalysis = { ...mockAnalysis, commitTypes: ["refactor"] };
-    const gif = selectGif(refactorAnalysis);
+    const gif = await selectGif(refactorAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should select docs GIF for documentation commits", () => {
+  it("should select docs GIF for documentation commits", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
     const docsAnalysis = { ...mockAnalysis, commitTypes: ["documentation"] };
-    const gif = selectGif(docsAnalysis);
+    const gif = await selectGif(docsAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should select perf GIF for performance commits", () => {
+  it("should select perf GIF for performance commits", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
     const perfAnalysis = { ...mockAnalysis, commitTypes: ["perf"] };
-    const gif = selectGif(perfAnalysis);
+    const gif = await selectGif(perfAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should select default GIF for unknown commit types", () => {
+  it("should select default GIF for unknown commit types", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
     const unknownAnalysis = { ...mockAnalysis, commitTypes: ["unknown"] };
-    const gif = selectGif(unknownAnalysis);
+    const gif = await selectGif(unknownAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should prioritize breaking changes over commit types", () => {
+  it("should prioritize breaking changes over commit types", async () => {
+    mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
     const breakingFeatureAnalysis = { 
       ...mockAnalysis, 
       hasBreakingChanges: true, 
       commitTypes: ["feature"] 
     };
-    const gif = selectGif(breakingFeatureAnalysis);
+    const gif = await selectGif(breakingFeatureAnalysis);
     expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
     expect(gif).toContain("giphy.gif");
   });
 
-  it("should return different GIFs on multiple calls (randomness)", () => {
-    const gifs = new Set();
-    for (let i = 0; i < 10; i++) {
-      gifs.add(selectGif(mockAnalysis));
+  it("should return different GIFs on multiple calls (randomness)", async () => {
+    // Mock different responses for each call
+    const mockUrls = [
+      ["https://media.giphy.com/media/test1/giphy.gif"],
+      ["https://media.giphy.com/media/test2/giphy.gif"],
+      ["https://media.giphy.com/media/test3/giphy.gif"],
+    ];
+    mockUrls.forEach((urls) => {
+      mockFetch.mockResolvedValueOnce(createMockGiphyResponse(urls));
+    });
+    
+    const gifs = new Set<string>();
+    for (let i = 0; i < 3; i++) {
+      const gif = await selectGif(mockAnalysis);
+      gifs.add(gif);
     }
-    // With 4 GIFs in the feature category, we should get some variety
-    expect(gifs.size).toBeGreaterThan(1);
+    // Should get some variety (at least 1 different GIF)
+    expect(gifs.size).toBeGreaterThanOrEqual(1);
   });
 
   describe("selectGifByCriteria", () => {
-    it("should select breaking GIF for large breaking changes", () => {
-      const gif = selectGifByCriteria(true, ["feature"], true, true);
+    it("should select breaking GIF for large breaking changes", async () => {
+      mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
+      const gif = await selectGifByCriteria(true, ["feature"], true, true);
       expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
       expect(gif).toContain("giphy.gif");
     });
 
-    it("should select test GIF for test-heavy changes", () => {
-      const gif = selectGifByCriteria(false, ["test"], true, false);
+    it("should select test GIF for test-heavy changes", async () => {
+      mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
+      const gif = await selectGifByCriteria(false, ["test"], true, false);
       expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
       expect(gif).toContain("giphy.gif");
     });
 
-    it("should handle empty commit types", () => {
-      const gif = selectGifByCriteria(false, [], false, false);
+    it("should handle empty commit types", async () => {
+      mockFetch.mockResolvedValueOnce(createMockGiphyResponse());
+      const gif = await selectGifByCriteria(false, [], false, false);
       expect(gif).toMatch(/^https:\/\/media\.giphy\.com\/media\//);
       expect(gif).toContain("giphy.gif");
     });

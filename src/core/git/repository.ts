@@ -70,3 +70,49 @@ export function createGitInstance(workingDir: string): SimpleGit {
     maxConcurrentProcesses: 6,
   });
 }
+
+export interface GitHubRepoInfo {
+  owner: string;
+  repo: string;
+}
+
+/**
+ * Extracts GitHub owner and repository name from git remote URL
+ */
+export async function getGitHubRepoInfo(workingDir?: string): Promise<GitHubRepoInfo> {
+  try {
+    const targetDir = workingDir || process.cwd();
+    const targetGit = createGitInstance(targetDir);
+    
+    const remoteUrl = await targetGit.remote(["get-url", "origin"]);
+    if (!remoteUrl) {
+      throw new Error("No remote URL found for 'origin'");
+    }
+    const url = remoteUrl.trim();
+    
+    // Match patterns like:
+    // - git@github.com:owner/repo.git
+    // - https://github.com/owner/repo.git
+    // - https://github.com/owner/repo
+    const sshMatch = url.match(/git@github\.com:(.+)\/(.+)\.git$/);
+    if (sshMatch) {
+      return {
+        owner: sshMatch[1],
+        repo: sshMatch[2].replace(/\.git$/, ""),
+      };
+    }
+    
+    const httpsMatch = url.match(/https?:\/\/github\.com\/(.+)\/(.+?)(?:\.git)?$/);
+    if (httpsMatch) {
+      return {
+        owner: httpsMatch[1],
+        repo: httpsMatch[2].replace(/\.git$/, ""),
+      };
+    }
+    
+    throw new Error(`Unable to parse GitHub repository from remote URL: ${url}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Error getting GitHub repo info: ${errorMessage}`);
+  }
+}

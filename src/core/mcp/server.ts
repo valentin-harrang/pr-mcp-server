@@ -148,6 +148,50 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
       },
     },
+    {
+      name: "create_pr",
+      description:
+        "Creates a Pull Request on GitHub using generate_pr_title for the title and generate_pr_description for the description. Automatically analyzes the current Git branch from the working directory and creates the PR. Requires GITHUB_TOKEN environment variable or githubToken parameter. Use this when the user asks to create a PR, open a PR, or submit a PR to GitHub.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          template: {
+            type: "string",
+            enum: ["standard", "detailed", "minimal"],
+            description: "Template to use for the description",
+            default: "standard",
+          },
+          language: {
+            type: "string",
+            enum: ["en", "fr"],
+            description: "Description language",
+            default: "fr",
+          },
+          includeStats: {
+            type: "boolean",
+            description: "Include statistics in the description",
+            default: true,
+          },
+          maxTitleLength: {
+            type: "number",
+            description: "Maximum length for the title (optional, e.g., 72)",
+          },
+          baseBranch: {
+            type: "string",
+            description: "Base branch for comparison (auto-detected if not provided)",
+          },
+          draft: {
+            type: "boolean",
+            description: "Create the PR as a draft",
+            default: false,
+          },
+          githubToken: {
+            type: "string",
+            description: "GitHub token for authentication (optional, defaults to GITHUB_TOKEN env var)",
+          },
+        },
+      },
+    },
   ],
 }));
 

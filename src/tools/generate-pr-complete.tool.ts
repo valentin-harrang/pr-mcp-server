@@ -92,7 +92,7 @@ export async function executeGenerateComplete(
     };
 
     const templateFunc = prTemplates[template][language];
-    const description = templateFunc(data);
+    const description = await templateFunc(data);
 
     return {
       title,

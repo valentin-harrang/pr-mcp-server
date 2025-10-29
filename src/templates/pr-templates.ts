@@ -4,7 +4,7 @@ import { selectGif } from "./gif-selector.js";
 
 export const prTemplates: PRTemplates = {
   standard: {
-    fr: (data: TemplateData) => `![GIF](${selectGif(data)})
+    fr: async (data: TemplateData) => `![GIF](${await selectGif(data)})
 
 ## 🎯 ${
       data.title || `Update from ${data.currentBranch}`
@@ -50,8 +50,8 @@ ${
           : ""
       }\n\`\`\``
     : ""
-}`,
-    en: (data: TemplateData) => `![GIF](${selectGif(data)})
+    }`,
+    en: async (data: TemplateData) => `![GIF](${await selectGif(data)})
 
 ## 🎯 ${
       data.title || `Update from ${data.currentBranch}`
@@ -100,7 +100,7 @@ ${
 }`,
   },
   minimal: {
-    fr: (data: TemplateData) => `![GIF](${selectGif(data)})
+    fr: async (data: TemplateData) => `![GIF](${await selectGif(data)})
 
 ## ${data.title || data.currentBranch}
 
@@ -109,7 +109,7 @@ ${data.commits.map((c: CommitInfo) => `- ${c.message}`).join("\n")}
 **Impact:** ${data.filesChanged} files | +${data.insertions} -${
       data.deletions
     }`,
-    en: (data: TemplateData) => `![GIF](${selectGif(data)})
+    en: async (data: TemplateData) => `![GIF](${await selectGif(data)})
 
 ## ${data.title || data.currentBranch}
 
@@ -120,8 +120,8 @@ ${data.commits.map((c: CommitInfo) => `- ${c.message}`).join("\n")}
     }`,
   },
   detailed: {
-    fr: (data: TemplateData) =>
-      `${prTemplates.standard.fr(data)}
+    fr: async (data: TemplateData) =>
+      `${await prTemplates.standard.fr(data)}
 
 ### 🚨 Important notes
 ${
@@ -137,8 +137,8 @@ To be determined based on modified files
 ### 🔗 Links
 - Related issue: #XXX
 - Documentation: [Link to docs]`,
-    en: (data: TemplateData) =>
-      `${prTemplates.standard.en(data)}
+    en: async (data: TemplateData) =>
+      `${await prTemplates.standard.en(data)}
 
 ### 🚨 Important notes
 ${

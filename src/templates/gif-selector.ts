@@ -1,140 +1,149 @@
 import { AnalysisResult } from "../core/git/types.js";
 
-// GIF categories based on commit types and work patterns
-const GIF_CATEGORIES = {
+// Giphy API configuration
+const GIPHY_API_KEY = "4KkFaNbs9aFyyrBtX9eq29xlEfM17D66";
+const GIPHY_API_BASE_URL = "https://api.giphy.com/v1/gifs";
+
+// Type definitions for Giphy API response
+interface GiphyImage {
+  url: string;
+}
+
+interface GiphyImages {
+  original?: GiphyImage;
+  downsized_medium?: GiphyImage;
+}
+
+interface GiphyGif {
+  id: string;
+  images: GiphyImages;
+}
+
+interface GiphySearchResponse {
+  data: GiphyGif[];
+}
+
+// Search terms for each category to query Giphy API
+const GIF_SEARCH_TERMS: Record<string, string[]> = {
   // Feature development
-  feature: [
-    "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif", // Building something
-    "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif", // Coding
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif", // Success
-    "https://media.giphy.com/media/3o7aTskTEUldX6sVj2/giphy.gif", // Celebration
-  ],
+  feature: ["coding celebration", "building something", "success", "awesome work"],
   
   // Bug fixes
-  fix: [
-    "https://media.giphy.com/media/3o7aCRloybJlXNLGk0/giphy.gif", // Bug squashing
-    "https://media.giphy.com/media/3o7aTskTEUldX6sVj2/giphy.gif", // Problem solved
-    "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif", // Debugging
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif", // Victory
-  ],
+  fix: ["bug fixed", "problem solved", "debugging", "victory"],
   
   // Documentation
-  docs: [
-    "https://media.giphy.com/media/3o7aCRloybJlXNLGk0/giphy.gif", // Writing
-    "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif", // Organizing
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif", // Knowledge
-    "https://media.giphy.com/media/3o7aTskTEUldX6sVj2/giphy.gif", // Learning
-  ],
+  docs: ["writing", "documentation", "knowledge", "learning"],
   
   // Testing
-  test: [
-    "https://media.giphy.com/media/3o7aCRloybJlXNLGk0/giphy.gif", // Testing
-    "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif", // Quality assurance
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif", // Success
-    "https://media.giphy.com/media/3o7aTskTEUldX6sVj2/giphy.gif", // Confidence
-  ],
+  test: ["testing", "quality assurance", "success", "confidence"],
   
   // Refactoring
-  refactor: [
-    "https://media.giphy.com/media/3o7aCRloybJlXNLGk0/giphy.gif", // Cleaning up
-    "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif", // Improving
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif", // Better code
-    "https://media.giphy.com/media/3o7aTskTEUldX6sVj2/giphy.gif", // Optimization
-  ],
+  refactor: ["cleaning up", "improving code", "optimization", "better code"],
   
   // Performance improvements
-  perf: [
-    "https://media.giphy.com/media/3o7aCRloybJlXNLGk0/giphy.gif", // Speed
-    "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif", // Optimization
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif", // Fast
-    "https://media.giphy.com/media/3o7aTskTEUldX6sVj2/giphy.gif", // Performance
-  ],
+  perf: ["speed", "performance", "fast", "optimization"],
   
   // Breaking changes
-  breaking: [
-    "https://media.giphy.com/media/3o7aCRloybJlXNLGk0/giphy.gif", // Major changes
-    "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif", // Big update
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif", // Transformation
-    "https://media.giphy.com/media/3o7aTskTEUldX6sVj2/giphy.gif", // Evolution
-  ],
+  breaking: ["major changes", "big update", "transformation", "evolution"],
   
   // Default/fallback
-  default: [
-    "https://media.giphy.com/media/3o7aCRloybJlXNLGk0/giphy.gif", // General work
-    "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif", // Coding
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif", // Progress
-    "https://media.giphy.com/media/3o7aTskTEUldX6sVj2/giphy.gif", // Development
-  ]
+  default: ["coding", "programming", "development", "work"]
 };
 
+// Fallback GIF URL in case API fails
+const FALLBACK_GIF_URL = "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif";
+
 /**
- * Selects an appropriate GIF based on the analysis of the branch
+ * Fetches a random GIF from Giphy API based on search term
  */
-export function selectGif(analysis: AnalysisResult): string {
-  // Check for breaking changes first (highest priority)
-  if (analysis.hasBreakingChanges) {
-    return getRandomGif(GIF_CATEGORIES.breaking);
+async function fetchGifFromGiphy(searchTerm: string): Promise<string> {
+  try {
+    const searchQuery = encodeURIComponent(searchTerm);
+    const url = `${GIPHY_API_BASE_URL}/search?api_key=${GIPHY_API_KEY}&q=${searchQuery}&limit=25&rating=g`;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.warn(`Giphy API request failed with status ${response.status}`);
+      return FALLBACK_GIF_URL;
+    }
+    
+    const data = await response.json() as GiphySearchResponse;
+    
+    if (!data.data || data.data.length === 0) {
+      console.warn(`No GIFs found for search term: ${searchTerm}`);
+      return FALLBACK_GIF_URL;
+    }
+    
+    // Select a random GIF from the results
+    const randomIndex = Math.floor(Math.random() * data.data.length);
+    const gif = data.data[randomIndex];
+    
+    // Return the URL of the GIF (use original or downsized_medium)
+    return gif.images?.original?.url || gif.images?.downsized_medium?.url || FALLBACK_GIF_URL;
+  } catch (error) {
+    console.warn(`Error fetching GIF from Giphy: ${error}`);
+    return FALLBACK_GIF_URL;
   }
-  
-  // Check commit types to determine the most appropriate category
-  const commitTypes = analysis.commitTypes;
-  
-  // Priority order for commit types
-  if (commitTypes.includes("feature")) {
-    return getRandomGif(GIF_CATEGORIES.feature);
-  }
-  
-  if (commitTypes.includes("fix")) {
-    return getRandomGif(GIF_CATEGORIES.fix);
-  }
-  
-  if (commitTypes.includes("test")) {
-    return getRandomGif(GIF_CATEGORIES.test);
-  }
-  
-  if (commitTypes.includes("refactor")) {
-    return getRandomGif(GIF_CATEGORIES.refactor);
-  }
-  
-  if (commitTypes.includes("perf")) {
-    return getRandomGif(GIF_CATEGORIES.perf);
-  }
-  
-  if (commitTypes.includes("documentation")) {
-    return getRandomGif(GIF_CATEGORIES.docs);
-  }
-  
-  // Fallback to default
-  return getRandomGif(GIF_CATEGORIES.default);
 }
 
 /**
- * Gets a random GIF from a category
+ * Gets a random search term from a category
  */
-function getRandomGif(category: string[]): string {
+function getRandomSearchTerm(category: string[]): string {
   const randomIndex = Math.floor(Math.random() * category.length);
   return category[randomIndex];
 }
 
 /**
+ * Selects an appropriate GIF based on the analysis of the branch
+ */
+export async function selectGif(analysis: AnalysisResult): Promise<string> {
+  let category: string;
+  let searchTerms: string[];
+  
+  // Check for breaking changes first (highest priority)
+  if (analysis.hasBreakingChanges) {
+    searchTerms = GIF_SEARCH_TERMS.breaking;
+    category = "breaking";
+  } else {
+    // Check commit types to determine the most appropriate category
+    const commitTypes = analysis.commitTypes;
+    
+    // Priority order for commit types
+    if (commitTypes.includes("feature")) {
+      category = "feature";
+    } else if (commitTypes.includes("fix")) {
+      category = "fix";
+    } else if (commitTypes.includes("test")) {
+      category = "test";
+    } else if (commitTypes.includes("refactor")) {
+      category = "refactor";
+    } else if (commitTypes.includes("perf")) {
+      category = "perf";
+    } else if (commitTypes.includes("documentation")) {
+      category = "docs";
+    } else {
+      category = "default";
+    }
+    
+    searchTerms = GIF_SEARCH_TERMS[category] || GIF_SEARCH_TERMS.default;
+  }
+  
+  // Get a random search term and fetch GIF from Giphy
+  const searchTerm = getRandomSearchTerm(searchTerms);
+  return await fetchGifFromGiphy(searchTerm);
+}
+
+/**
  * Gets a GIF based on specific criteria (for more targeted selection)
  */
-export function selectGifByCriteria(
+export async function selectGifByCriteria(
   hasBreakingChanges: boolean,
   commitTypes: string[],
   hasTests: boolean,
   isLargeChange: boolean
-): string {
-  // Large changes get special treatment
-  if (isLargeChange && hasBreakingChanges) {
-    return getRandomGif(GIF_CATEGORIES.breaking);
-  }
-  
-  // Test-heavy changes
-  if (hasTests && commitTypes.includes("test")) {
-    return getRandomGif(GIF_CATEGORIES.test);
-  }
-  
+): Promise<string> {
   // Use the main selection logic
   const mockAnalysis: AnalysisResult = {
     currentBranch: "",
@@ -151,5 +160,5 @@ export function selectGifByCriteria(
     hasTests
   };
   
-  return selectGif(mockAnalysis);
+  return await selectGif(mockAnalysis);
 }

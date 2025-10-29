@@ -47,3 +47,19 @@ export const GenerateCompleteSchema = z.object({
   maxTitleLength: z.number().int().positive().max(200).optional(),
   baseBranch: z.string().optional(),
 });
+
+export const CreatePRSchema = z.object({
+  template: z
+    .custom<TemplateType>(
+      (val) => val === "standard" || val === "detailed" || val === "minimal"
+    )
+    .default("standard"),
+  language: z
+    .custom<Language>((val) => val === "en" || val === "fr")
+    .default("fr"),
+  includeStats: z.boolean().default(true),
+  maxTitleLength: z.number().int().positive().max(200).optional(),
+  baseBranch: z.string().optional(),
+  draft: z.boolean().default(false),
+  githubToken: z.string().optional(),
+});
