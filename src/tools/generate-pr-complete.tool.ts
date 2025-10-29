@@ -83,11 +83,21 @@ export async function executeGenerateComplete(
       ? base 
       : base.slice(0, Math.max(3, maxTitleLength - 3)).trimEnd() + "...";
 
-    // Generate description
+    // Generate description with detailed changes
+    const changesList = messages.map((msg) => {
+      // Clean up conventional commit prefixes for better readability
+      let cleanMsg = msg.replace(/^[a-z]+(?:\([^)]*\))?:\s*/i, "").trim();
+      // Capitalize first letter
+      cleanMsg = cleanMsg.charAt(0).toUpperCase() + cleanMsg.slice(1);
+      return `- ${cleanMsg}`;
+    }).join('\n');
+
+    const descriptionSummary = `**What does this PR change or add?**\n\n${changesList || `- This PR contains ${analysis.totalCommits} commits with ${analysis.filesChanged} files modified.`}`;
+
     const data = {
       ...analysis,
       title,
-      description: `Cette PR implémente: ${title}`,
+      description: descriptionSummary,
       includeStats,
     };
 
