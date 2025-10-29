@@ -9,11 +9,14 @@ export interface CreatePRResult {
   number: number;
   title: string;
   state: string;
+  action: 'created' | 'reopened' | 'updated';
 }
 
 /**
  * Tool: create_pr
- * Creates a Pull Request on GitHub using generate-pr-title and generate-pr-description
+ * Creates a Pull Request on GitHub using generate-pr-title and generate-pr-description.
+ * Smart handling: If a PR already exists for the branch (open or closed), it will be updated/reopened
+ * instead of failing with a duplicate error.
  */
 export async function executeCreatePR(
   template: TemplateType = "standard",
@@ -78,22 +81,67 @@ export async function executeCreatePR(
       detectedBaseBranch
     );
 
-    // Create PR using Octokit
-    const { data: pr } = await octokit.rest.pulls.create({
+    // Check if a PR already exists for this branch
+    const { data: existingPRs } = await octokit.rest.pulls.list({
       owner: repoInfo.owner,
       repo: repoInfo.repo,
-      title,
-      body: description,
-      head: currentBranch,
+      head: `${repoInfo.owner}:${currentBranch}`,
       base: detectedBaseBranch,
-      draft,
+      state: 'all', // Include both open and closed PRs
     });
+
+    let pr;
+    let action: 'created' | 'reopened' | 'updated';
+
+    if (existingPRs.length > 0) {
+      // PR already exists - update it
+      const existingPR = existingPRs[0];
+      
+      if (existingPR.state === 'closed') {
+        // Reopen the closed PR
+        const { data: reopenedPR } = await octokit.rest.pulls.update({
+          owner: repoInfo.owner,
+          repo: repoInfo.repo,
+          pull_number: existingPR.number,
+          title,
+          body: description,
+          state: 'open',
+        });
+        pr = reopenedPR;
+        action = 'reopened';
+      } else {
+        // Update the existing open PR
+        const { data: updatedPR } = await octokit.rest.pulls.update({
+          owner: repoInfo.owner,
+          repo: repoInfo.repo,
+          pull_number: existingPR.number,
+          title,
+          body: description,
+        });
+        pr = updatedPR;
+        action = 'updated';
+      }
+    } else {
+      // No existing PR - create a new one
+      const { data: newPR } = await octokit.rest.pulls.create({
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+        title,
+        body: description,
+        head: currentBranch,
+        base: detectedBaseBranch,
+        draft,
+      });
+      pr = newPR;
+      action = 'created';
+    }
 
     return {
       url: pr.html_url,
       number: pr.number,
       title: pr.title,
       state: pr.state,
+      action,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

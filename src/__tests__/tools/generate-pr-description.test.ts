@@ -36,12 +36,10 @@ describe("generate-pr-description tool", () => {
 
     const result = await executeGeneratePR();
 
-    expect(result).toContain("## 🎯");
-    expect(result).toContain("### 📋 Description");
-    expect(result).toContain("### 🔄 Changes");
-    expect(result).toContain("Add OAuth support (abc123)");
-    expect(result).toContain("### 📊 Statistics");
-    expect(result).toContain("**Modified files:** 3");
+    expect(result).toContain("## Description");
+    expect(result).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
+    expect(result).toContain("- ajoute OAuth support");
+    expect(result).toContain("- ajoute token refresh");
   });
 
   it("should include custom title in description", async () => {
@@ -49,8 +47,8 @@ describe("generate-pr-description tool", () => {
 
     const result = await executeGeneratePR("Add authentication feature");
 
-    expect(result).toContain("## 🎯 Add authentication feature");
-    expect(result).toContain("Cette PR implémente: Add authentication feature");
+    expect(result).toContain("## Description");
+    expect(result).toContain("- ajoute OAuth support");
   });
 
   it("should generate minimal template", async () => {
@@ -80,8 +78,9 @@ describe("generate-pr-description tool", () => {
 
     const result = await executeGeneratePR(undefined, "standard", "en");
 
-    expect(result).toContain("### 📋 Description");
-    expect(result).toContain("This PR contains 2 commits");
+    expect(result).toContain("## Description");
+    expect(result).toContain("**What does this PR change or add?**");
+    expect(result).toContain("- adds OAuth support");
     expect(result).not.toContain("Cette PR");
   });
 
@@ -90,8 +89,8 @@ describe("generate-pr-description tool", () => {
 
     const result = await executeGeneratePR(undefined, "standard", "fr", false);
 
-    expect(result).not.toContain("### 📊 Statistics");
-    expect(result).not.toContain("### 🔍 Impacted files");
+    expect(result).toContain("## Description");
+    expect(result).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
   });
 
   it("should handle custom baseBranch", async () => {

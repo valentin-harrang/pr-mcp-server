@@ -39,9 +39,9 @@ describe("generate-pr-complete tool", () => {
     expect(result).toHaveProperty("title");
     expect(result).toHaveProperty("description");
     expect(result.title).toBe("feat(auth): add OAuth support");
-    expect(result.description).toContain("## 🎯");
-    expect(result.description).toContain("### 📋 Description");
-    expect(result.description).toContain("Cette PR implémente: feat(auth): add OAuth support");
+    expect(result.description).toContain("## Description");
+    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
+    expect(result.description).toContain("- ajoute add OAuth support");
   });
 
   it("should generate title and description with custom template", async () => {
@@ -61,8 +61,9 @@ describe("generate-pr-complete tool", () => {
     const result = await executeGenerateComplete("standard", "en", true);
 
     expect(result.title).toBe("feat(auth): add OAuth support");
-    expect(result.description).toContain("Cette PR implémente: feat(auth): add OAuth support");
-    expect(result.description).not.toContain("This PR contains");
+    expect(result.description).toContain("**What does this PR change or add?**");
+    expect(result.description).toContain("- adds s add OAuth support");
+    expect(result.description).not.toContain("Cette PR");
   });
 
   it("should truncate title when maxTitleLength is specified", async () => {
@@ -78,7 +79,7 @@ describe("generate-pr-complete tool", () => {
 
     expect(result.title.length).toBeLessThanOrEqual(30);
     expect(result.title).toMatch(/\.{3}$/); // ends with ...
-    expect(result.description).toContain(result.title);
+    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
   });
 
   it("should exclude stats when includeStats is false", async () => {
@@ -135,7 +136,7 @@ describe("generate-pr-complete tool", () => {
     const result = await executeGenerateComplete();
 
     expect(result.title).toMatch(/^chore:/);
-    expect(result.description).toContain(result.title);
+    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
   });
 
   it("should handle title without scope when files are in src/", async () => {
@@ -150,7 +151,7 @@ describe("generate-pr-complete tool", () => {
     const result = await executeGenerateComplete();
 
     expect(result.title).toBe("feat: add OAuth support");
-    expect(result.description).toContain(result.title);
+    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
   });
 
   it("should throw error on analysis failure", async () => {
@@ -166,9 +167,65 @@ describe("generate-pr-complete tool", () => {
 
     expect(result).toEqual({
       title: "feat(auth): add OAuth support",
-      description: expect.stringContaining("## 🎯"),
+      description: expect.stringContaining("## Description"),
     });
     expect(typeof result.title).toBe("string");
     expect(typeof result.description).toBe("string");
+  });
+
+  it("should use child directory as scope in monorepo with packages/", async () => {
+    const monorepoAnalysis = {
+      ...mockAnalysis,
+      commits: [
+        { hash: "abc123", message: "feat: add new API endpoint", author: "John", date: "2025-01-01" },
+      ],
+      filesList: [
+        { file: "packages/api/src/routes.ts", changes: 30, insertions: 30, deletions: 0 },
+        { file: "packages/api/src/controllers.ts", changes: 20, insertions: 15, deletions: 5 },
+      ],
+    };
+    vi.mocked(analyzer.analyzeBranch).mockResolvedValue(monorepoAnalysis);
+
+    const result = await executeGenerateComplete();
+
+    expect(result.title).toBe("feat(api): add new API endpoint");
+    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
+    expect(result.description).toContain("- ajoute add new API endpoint");
+  });
+
+  it("should use child directory as scope in monorepo with apps/", async () => {
+    const monorepoAnalysis = {
+      ...mockAnalysis,
+      commits: [
+        { hash: "abc123", message: "fix: resolve rendering bug", author: "Jane", date: "2025-01-01" },
+      ],
+      filesList: [
+        { file: "apps/frontend/src/components/Button.tsx", changes: 15, insertions: 10, deletions: 5 },
+      ],
+    };
+    vi.mocked(analyzer.analyzeBranch).mockResolvedValue(monorepoAnalysis);
+
+    const result = await executeGenerateComplete();
+
+    expect(result.title).toBe("fix(frontend): resolve rendering bug");
+    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
+    expect(result.description).toContain("- corrige resolve rendering bug");
+  });
+
+  it("should handle libs/ monorepo structure", async () => {
+    const monorepoAnalysis = {
+      ...mockAnalysis,
+      commits: [
+        { hash: "abc123", message: "feat: add shared utilities", author: "John", date: "2025-01-01" },
+      ],
+      filesList: [
+        { file: "libs/utils/src/helpers.ts", changes: 30, insertions: 30, deletions: 0 },
+      ],
+    };
+    vi.mocked(analyzer.analyzeBranch).mockResolvedValue(monorepoAnalysis);
+
+    const result = await executeGenerateComplete();
+
+    expect(result.title).toBe("feat(utils): add shared utilities");
   });
 });

@@ -215,13 +215,17 @@ REQUEST_CHANGES - [brief reason]
 ```
 
 ### 7) create_pr
-- Description: Creates a Pull Request on GitHub using `generate_pr_title` for the title and `generate_pr_description` for the description. Automatically analyzes the current Git branch and creates the PR on GitHub.
+- Description: Creates a Pull Request on GitHub using `generate_pr_title` for the title and `generate_pr_description` for the description. Automatically analyzes the current Git branch and creates the PR on GitHub. **Smart handling:** If a PR already exists for the branch (even if closed), it will be reopened and updated instead of failing.
 - **Prerequisites:**
   - Set `GITHUB_TOKEN` environment variable with a GitHub token (or pass `githubToken` parameter)
     - Supports **Personal Access Tokens** (starts with `ghp_`)
     - Supports **Enterprise Tokens** (starts with `github_pat_`)
   - Your branch must be pushed to the remote repository (`git push -u origin <branch-name>`)
   - Repository must have a remote named `origin` pointing to GitHub
+- **Behavior:**
+  - ✅ **No existing PR:** Creates a new PR
+  - ✅ **Closed PR exists:** Reopens the PR and updates its title/description
+  - ✅ **Open PR exists:** Updates the existing PR's title/description
 - Input:
 ```
 {
@@ -235,7 +239,7 @@ REQUEST_CHANGES - [brief reason]
                                       // Can be personal token (ghp_...) or enterprise token (github_pat_...)
 }
 ```
-- Output: `{ url: string, number: number, title: string, state: string }` - PR details with link to the created PR.
+- Output: `{ url: string, number: number, title: string, state: string, action: 'created' | 'reopened' | 'updated' }` - PR details with link and action taken.
 
 **Example:**
 ```json
@@ -243,7 +247,8 @@ REQUEST_CHANGES - [brief reason]
   "url": "https://github.com/owner/repo/pull/123",
   "number": 123,
   "title": "feat(auth): add OAuth support",
-  "state": "open"
+  "state": "open",
+  "action": "reopened"
 }
 ```
 
