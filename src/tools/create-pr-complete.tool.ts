@@ -26,18 +26,21 @@ export interface CreatePRCompleteResult {
  * UNIFIED PR CREATION WORKFLOW
  *
  * RECOMMENDED WORKFLOW FOR AI ASSISTANTS:
- * 1. Call 'generate_pr_title' tool first to get an AI prompt
- * 2. Analyze the code changes and generate an intelligent title
- * 3. Call this tool with the generated title in the 'title' parameter
+ * 1. Call 'generate_pr_title' tool to get an AI prompt
+ * 2. YOU (Claude) analyze and generate an intelligent title
+ * 3. Call 'generate_pr_description' tool to get an AI prompt
+ * 4. YOU (Claude) analyze and generate an intelligent description
+ * 5. Call 'review' tool to get comprehensive context/diff prompt
+ * 6. YOU (Claude) analyze and write a code review
+ * 7. Call this tool with 'title', 'description', and 'aiReviewText' parameters
  *
  * This tool performs the complete PR creation workflow:
  * 1. Analyzes changes and gathers project context
- * 2. Uses provided title or generates a simple one based on commits
- * 3. Performs AI-powered code review with project context awareness (if aiReviewText provided)
- * 4. Generates comprehensive PR description including the review
- * 5. Adds relevant GIF at the end
- * 6. Creates/updates the PR on GitHub
- * 7. Assigns appropriate reviewers automatically
+ * 2. Uses provided title/description or generates simple versions
+ * 3. Includes AI-powered code review (if aiReviewText provided)
+ * 4. Adds relevant GIF at the end
+ * 5. Creates/updates the PR on GitHub
+ * 6. Assigns appropriate reviewers automatically
  */
 export async function executeCreatePRComplete(
   template: TemplateType = "standard",
@@ -51,7 +54,8 @@ export async function executeCreatePRComplete(
   maxReviewers: number = 3,
   includeAIReview: boolean = false,
   aiReviewText?: string,
-  title?: string
+  title?: string,
+  description?: string
 ): Promise<CreatePRCompleteResult> {
   try {
     console.error("=== UNIFIED PR CREATION WORKFLOW STARTING ===");
@@ -103,71 +107,85 @@ export async function executeCreatePRComplete(
       console.error("⏭️  STEP 3: Skipping AI review (disabled)");
     }
 
-    // STEP 4: Generate PR description with review included
-    console.error("📄 STEP 4: Generating comprehensive PR description...");
+    // STEP 4: Use provided description or generate one
+    console.error("📄 STEP 4: Preparing PR description...");
 
-    // Build enhanced description with commits in descriptive format
-    const commitsList = analysis.commits
-      .map((c: CommitInfo) => {
-        let message = c.message;
+    let finalDescription: string;
+    if (description) {
+      console.error(`   ✓ Using AI-generated description (${description.split('\n').length} lines)`);
+      finalDescription = description;
+    } else {
+      console.error("   ℹ️  No description provided, generating simple template-based description...");
+      
+      // Build enhanced description with commits in descriptive format
+      const commitsList = analysis.commits
+        .map((c: CommitInfo) => {
+          let message = c.message;
 
-        // Transform commit messages to be more descriptive
-        if (language === "fr") {
-          message = message.replace(/^feat(\(.+\))?:?\s*/i, 'Ajoute ');
-          message = message.replace(/^add(\(.+\))?:?\s*/i, 'Ajoute ');
-          message = message.replace(/^fix(\(.+\))?:?\s*/i, 'Corrige ');
-          message = message.replace(/^update(\(.+\))?:?\s*/i, 'Met à jour ');
-          message = message.replace(/^refactor(\(.+\))?:?\s*/i, 'Refactorise ');
-          message = message.replace(/^remove(\(.+\))?:?\s*/i, 'Supprime ');
-          message = message.replace(/^implement(\(.+\))?:?\s*/i, 'Implémente ');
-          message = message.replace(/^improve(\(.+\))?:?\s*/i, 'Améliore ');
-          message = message.replace(/^enhance(\(.+\))?:?\s*/i, 'Améliore ');
-        } else {
-          message = message.replace(/^feat(\(.+\))?:?\s*/i, 'Adds ');
-          message = message.replace(/^add(\(.+\))?:?\s*/i, 'Adds ');
-          message = message.replace(/^fix(\(.+\))?:?\s*/i, 'Fixes ');
-          message = message.replace(/^update(\(.+\))?:?\s*/i, 'Updates ');
-          message = message.replace(/^refactor(\(.+\))?:?\s*/i, 'Refactors ');
-          message = message.replace(/^remove(\(.+\))?:?\s*/i, 'Removes ');
-          message = message.replace(/^implement(\(.+\))?:?\s*/i, 'Implements ');
-          message = message.replace(/^improve(\(.+\))?:?\s*/i, 'Improves ');
-          message = message.replace(/^enhance(\(.+\))?:?\s*/i, 'Enhances ');
-        }
+          // Transform commit messages to be more descriptive
+          if (language === "fr") {
+            message = message.replace(/^feat(\(.+\))?:?\s*/i, 'Ajoute ');
+            message = message.replace(/^add(\(.+\))?:?\s*/i, 'Ajoute ');
+            message = message.replace(/^fix(\(.+\))?:?\s*/i, 'Corrige ');
+            message = message.replace(/^update(\(.+\))?:?\s*/i, 'Met à jour ');
+            message = message.replace(/^refactor(\(.+\))?:?\s*/i, 'Refactorise ');
+            message = message.replace(/^remove(\(.+\))?:?\s*/i, 'Supprime ');
+            message = message.replace(/^implement(\(.+\))?:?\s*/i, 'Implémente ');
+            message = message.replace(/^improve(\(.+\))?:?\s*/i, 'Améliore ');
+            message = message.replace(/^enhance(\(.+\))?:?\s*/i, 'Améliore ');
+          } else {
+            message = message.replace(/^feat(\(.+\))?:?\s*/i, 'Adds ');
+            message = message.replace(/^add(\(.+\))?:?\s*/i, 'Adds ');
+            message = message.replace(/^fix(\(.+\))?:?\s*/i, 'Fixes ');
+            message = message.replace(/^update(\(.+\))?:?\s*/i, 'Updates ');
+            message = message.replace(/^refactor(\(.+\))?:?\s*/i, 'Refactors ');
+            message = message.replace(/^remove(\(.+\))?:?\s*/i, 'Removes ');
+            message = message.replace(/^implement(\(.+\))?:?\s*/i, 'Implements ');
+            message = message.replace(/^improve(\(.+\))?:?\s*/i, 'Improves ');
+            message = message.replace(/^enhance(\(.+\))?:?\s*/i, 'Enhances ');
+          }
 
-        // Lowercase first letter to make it flow better
-        message = message.charAt(0).toLowerCase() + message.slice(1);
+          // Lowercase first letter to make it flow better
+          message = message.charAt(0).toLowerCase() + message.slice(1);
 
-        return `- ${message}`;
-      })
-      .join('\n');
+          return `- ${message}`;
+        })
+        .join('\n');
 
-    const data = {
-      ...analysis,
-      title: finalTitle,
-      description: commitsList,
-      includeStats,
-      projectContext,
-    };
+      const data = {
+        ...analysis,
+        title: finalTitle,
+        description: commitsList,
+        includeStats,
+        projectContext,
+      };
 
-    const templateFunc = prTemplates[template][language];
-    let description = await templateFunc(data);
+      const templateFunc = prTemplates[template][language];
+      finalDescription = await templateFunc(data);
+      console.error(`   ✓ Template-based description generated`);
+    }
 
-    // Insert the AI review section before the GIF
-    if (reviewSection) {
-      // Find the GIF line and insert review before it
-      const gifMatch = description.match(/!\[.*?\]\(.*?\)/);
+    // Insert the AI review section before the GIF (only if using template-generated description)
+    if (reviewSection && !description) {
+      // Only insert review into template-generated descriptions
+      // If user provided custom description, they should include review themselves
+      const gifMatch = finalDescription.match(/!\[.*?\]\(.*?\)/);
       if (gifMatch) {
-        const gifIndex = description.indexOf(gifMatch[0]);
-        description = description.slice(0, gifIndex) + reviewSection + "\n\n" + description.slice(gifIndex);
+        const gifIndex = finalDescription.indexOf(gifMatch[0]);
+        finalDescription = finalDescription.slice(0, gifIndex) + reviewSection + "\n\n" + finalDescription.slice(gifIndex);
         console.error(`   ✓ Review inserted before GIF`);
       } else {
         // No GIF found, append review at the end
-        description += reviewSection;
+        finalDescription += reviewSection;
         console.error(`   ✓ Review appended (no GIF found)`);
       }
+    } else if (reviewSection && description) {
+      // User provided description - append review at the end
+      finalDescription += "\n\n" + reviewSection;
+      console.error(`   ✓ Review appended to custom description`);
     }
 
-    console.error(`   ✓ Description generated (${description.split('\n').length} lines)`);
+    console.error(`   ✓ Final description ready (${finalDescription.split('\n').length} lines)`);
 
     // Verify branch exists on remote
     const octokit = new Octokit({ auth: token });
@@ -214,7 +232,7 @@ export async function executeCreatePRComplete(
           repo: repoInfo.repo,
           pull_number: existingPR.number,
           title: finalTitle,
-          body: description,
+          body: finalDescription,
           state: 'open',
         });
         pr = reopenedPR;
@@ -226,7 +244,7 @@ export async function executeCreatePRComplete(
           repo: repoInfo.repo,
           pull_number: existingPR.number,
           title: finalTitle,
-          body: description,
+          body: finalDescription,
         });
         pr = updatedPR;
         action = 'updated';
@@ -237,7 +255,7 @@ export async function executeCreatePRComplete(
         owner: repoInfo.owner,
         repo: repoInfo.repo,
         title: finalTitle,
-        body: description,
+        body: finalDescription,
         head: currentBranch,
         base: detectedBaseBranch,
         draft,

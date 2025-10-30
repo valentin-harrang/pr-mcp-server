@@ -65,6 +65,7 @@ export const CreatePRSchema = z.object({
   addReviewers: z.boolean().default(true),
   maxReviewers: z.number().int().positive().max(20).default(3),
   title: z.string().optional(), // AI-generated title from generate_pr_title
+  description: z.string().optional(), // AI-generated description from generate_pr_description
 });
 
 export const CreatePRCompleteSchema = z.object({
@@ -86,4 +87,5 @@ export const CreatePRCompleteSchema = z.object({
   includeAIReview: z.boolean().default(false),
   aiReviewText: z.string().optional(), // The actual AI-generated review to include
   title: z.string().optional(), // AI-generated title from generate_pr_title
+  description: z.string().optional(), // AI-generated description from generate_pr_description
 });

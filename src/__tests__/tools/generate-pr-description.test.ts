@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { executeGeneratePR } from "../../tools/generate-pr-description.tool.js";
+import { executeGeneratePRSimple } from "../../tools/generate-pr-description.tool.js";
 import * as analyzer from "../../core/git/analyzer.js";
 
 vi.mock("../../core/git/analyzer.js");
 
-describe("generate-pr-description tool", () => {
+describe("generate-pr-description tool (simple/fallback)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -34,7 +34,7 @@ describe("generate-pr-description tool", () => {
   it("should generate standard FR template by default", async () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
-    const result = await executeGeneratePR();
+    const result = await executeGeneratePRSimple();
 
     expect(result).toContain("## Description");
     expect(result).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
@@ -45,7 +45,7 @@ describe("generate-pr-description tool", () => {
   it("should include custom title in description", async () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
-    const result = await executeGeneratePR("Add authentication feature");
+    const result = await executeGeneratePRSimple("Add authentication feature");
 
     expect(result).toContain("## Description");
     expect(result).toContain("- ajoute OAuth support");
@@ -54,7 +54,7 @@ describe("generate-pr-description tool", () => {
   it("should generate minimal template", async () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
-    const result = await executeGeneratePR(undefined, "minimal", "fr");
+    const result = await executeGeneratePRSimple(undefined, "minimal", "fr");
 
     expect(result).toContain("## feature/auth");
     expect(result).toContain("Add OAuth support");
@@ -66,7 +66,7 @@ describe("generate-pr-description tool", () => {
     const detailedAnalysis = { ...mockAnalysis, hasBreakingChanges: true };
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(detailedAnalysis);
 
-    const result = await executeGeneratePR(undefined, "detailed", "fr");
+    const result = await executeGeneratePRSimple(undefined, "detailed", "fr");
 
     expect(result).toContain("### 🚨 Important notes");
     expect(result).toContain("⚠️ **Breaking Changes detected**");
@@ -76,7 +76,7 @@ describe("generate-pr-description tool", () => {
   it("should generate English template", async () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
-    const result = await executeGeneratePR(undefined, "standard", "en");
+    const result = await executeGeneratePRSimple(undefined, "standard", "en");
 
     expect(result).toContain("## Description");
     expect(result).toContain("**What does this PR change or add?**");
@@ -87,7 +87,7 @@ describe("generate-pr-description tool", () => {
   it("should exclude stats when includeStats is false", async () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
-    const result = await executeGeneratePR(undefined, "standard", "fr", false);
+    const result = await executeGeneratePRSimple(undefined, "standard", "fr", false);
 
     expect(result).toContain("## Description");
     expect(result).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
@@ -96,7 +96,7 @@ describe("generate-pr-description tool", () => {
   it("should handle custom baseBranch", async () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
-    await executeGeneratePR(undefined, "standard", "fr", true, "develop");
+    await executeGeneratePRSimple(undefined, "standard", "fr", true, "develop");
 
     expect(analyzer.analyzeBranch).toHaveBeenCalledWith("develop", true);
   });
@@ -104,6 +104,6 @@ describe("generate-pr-description tool", () => {
   it("should throw error on analysis failure", async () => {
     vi.mocked(analyzer.analyzeBranch).mockRejectedValue(new Error("Git error"));
 
-    await expect(executeGeneratePR()).rejects.toThrow("Error generating PR description: Git error");
+    await expect(executeGeneratePRSimple()).rejects.toThrow("Error generating PR description: Git error");
   });
 });

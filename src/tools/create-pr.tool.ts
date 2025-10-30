@@ -1,7 +1,7 @@
 import { Octokit } from "@octokit/rest";
 import { createGitInstance, getGitHubRepoInfo, detectMainBranch } from "../core/git/repository.js";
 import { executeGenerateTitleSimple } from "./generate-pr-title.tool.js";
-import { executeGeneratePR } from "./generate-pr-description.tool.js";
+import { executeGeneratePRSimple } from "./generate-pr-description.tool.js";
 import { executeSuggestReviewers } from "./suggest-reviewers.tool.js";
 import { Language, TemplateType } from "../validation/types.js";
 
@@ -21,11 +21,13 @@ export interface CreatePRResult {
  * Creates a Pull Request on GitHub.
  *
  * RECOMMENDED WORKFLOW FOR AI ASSISTANTS:
- * 1. Call 'generate_pr_title' tool first to get an AI prompt
- * 2. Analyze the code changes and generate an intelligent title
- * 3. Call this tool with the generated title in the 'title' parameter
+ * 1. Call 'generate_pr_title' tool to get an AI prompt
+ * 2. YOU (Claude) analyze and generate an intelligent title
+ * 3. Call 'generate_pr_description' tool to get an AI prompt
+ * 4. YOU (Claude) analyze and generate an intelligent description
+ * 5. Call this tool with the generated 'title' and 'description' parameters
  *
- * If no title is provided, it will generate a simple title based on commit messages.
+ * If title/description not provided, simple versions will be auto-generated.
  *
  * Smart handling: If a PR already exists for the branch (open or closed), it will be updated/reopened
  * instead of failing with a duplicate error.
@@ -41,7 +43,8 @@ export async function executeCreatePR(
   githubToken?: string,
   addReviewers: boolean = true,
   maxReviewers: number = 3,
-  title?: string
+  title?: string,
+  description?: string
 ): Promise<CreatePRResult> {
   try {
     // Get GitHub token (supports both personal access tokens 'ghp_' and enterprise tokens 'github_pat_')
@@ -88,8 +91,8 @@ export async function executeCreatePR(
     // Generate title if not provided
     const finalTitle = title || await executeGenerateTitleSimple(maxTitleLength, detectedBaseBranch);
 
-    // Generate description
-    const description = await executeGeneratePR(
+    // Generate description if not provided
+    const finalDescription = description || await executeGeneratePRSimple(
       finalTitle,
       template,
       language,
@@ -119,9 +122,9 @@ export async function executeCreatePR(
           owner: repoInfo.owner,
           repo: repoInfo.repo,
           pull_number: existingPR.number,
-          title: finalTitle,
-          body: description,
-          state: 'open',
+            title: finalTitle,
+            body: finalDescription,
+            state: 'open',
         });
         pr = reopenedPR;
         action = 'reopened';
@@ -131,10 +134,10 @@ export async function executeCreatePR(
           owner: repoInfo.owner,
           repo: repoInfo.repo,
           pull_number: existingPR.number,
-          title: finalTitle,
-          body: description,
-        });
-        pr = updatedPR;
+            title: finalTitle,
+            body: finalDescription,
+          });
+          pr = updatedPR;
         action = 'updated';
       }
     } else {
@@ -142,9 +145,9 @@ export async function executeCreatePR(
       const { data: newPR } = await octokit.rest.pulls.create({
         owner: repoInfo.owner,
         repo: repoInfo.repo,
-        title: finalTitle,
-        body: description,
-        head: currentBranch,
+          title: finalTitle,
+          body: finalDescription,
+          head: currentBranch,
         base: detectedBaseBranch,
         draft,
       });

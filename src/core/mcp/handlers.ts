@@ -139,7 +139,8 @@ export async function handleToolRequest(
           validated.githubToken,
           validated.addReviewers,
           validated.maxReviewers,
-          validated.title
+          validated.title,
+          validated.description
         );
         return {
           content: [
@@ -165,7 +166,8 @@ export async function handleToolRequest(
           validated.maxReviewers,
           validated.includeAIReview,
           validated.aiReviewText,
-          validated.title
+          validated.title,
+          validated.description
         );
         return {
           content: [
