@@ -2,11 +2,11 @@ import { Octokit } from "@octokit/rest";
 import { createGitInstance, getGitHubRepoInfo, detectMainBranch } from "../core/git/repository.js";
 import { executeGenerateTitle } from "./generate-pr-title.tool.js";
 import { executeSuggestReviewers } from "./suggest-reviewers.tool.js";
-import { executeAIReview } from "./review.tool.js";
 import { Language, TemplateType } from "../validation/types.js";
 import { analyzeBranch } from "../core/git/analyzer.js";
 import { prTemplates } from "../templates/pr-templates.js";
 import { CommitInfo } from "../core/git/types.js";
+import { gatherProjectContext } from "../core/context/project-context.js";
 
 export interface CreatePRCompleteResult {
   url: string;
@@ -74,7 +74,9 @@ export async function executeCreatePRComplete(
     // STEP 1: Analyze changes & gather context
     console.error("🔍 STEP 1: Analyzing changes and gathering project context...");
     const analysis = await analyzeBranch(detectedBaseBranch, true);
+    const projectContext = await gatherProjectContext();
     console.error(`   ✓ Found ${analysis.totalCommits} commits, ${analysis.filesChanged} files changed`);
+    console.error(`   ✓ Project context: ${projectContext.hasTypeScript ? 'TypeScript' : 'JavaScript'}${projectContext.testingFramework ? `, ${projectContext.testingFramework}` : ''}${projectContext.stylingApproach ? `, ${projectContext.stylingApproach}` : ''}`);
 
     // STEP 2: Generate PR title
     console.error("📝 STEP 2: Generating PR title...");
@@ -140,6 +142,7 @@ export async function executeCreatePRComplete(
       title,
       description: commitsList,
       includeStats,
+      projectContext,
     };
 
     const templateFunc = prTemplates[template][language];
