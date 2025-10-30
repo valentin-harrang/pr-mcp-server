@@ -40,8 +40,8 @@ describe("generate-pr-complete tool", () => {
     expect(result).toHaveProperty("description");
     expect(result.title).toBe("feat(auth): add OAuth support");
     expect(result.description).toContain("## Description");
-    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
-    expect(result.description).toContain("- ajoute add OAuth support");
+    expect(result.description).toContain("**What does this PR change or add?**");
+    expect(result.description).toContain("- adds s add OAuth support");
   });
 
   it("should generate title and description with custom template", async () => {
@@ -136,7 +136,7 @@ describe("generate-pr-complete tool", () => {
     const result = await executeGenerateComplete();
 
     expect(result.title).toMatch(/^chore:/);
-    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
+    expect(result.description).toContain("**What does this PR change or add?**");
   });
 
   it("should handle title without scope when files are in src/", async () => {
@@ -151,7 +151,7 @@ describe("generate-pr-complete tool", () => {
     const result = await executeGenerateComplete();
 
     expect(result.title).toBe("feat: add OAuth support");
-    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
+    expect(result.description).toContain("**What does this PR change or add?**");
   });
 
   it("should throw error on analysis failure", async () => {
@@ -189,8 +189,8 @@ describe("generate-pr-complete tool", () => {
     const result = await executeGenerateComplete();
 
     expect(result.title).toBe("feat(api): add new API endpoint");
-    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
-    expect(result.description).toContain("- ajoute add new API endpoint");
+    expect(result.description).toContain("**What does this PR change or add?**");
+    expect(result.description).toContain("- adds s add new API endpoint");
   });
 
   it("should use child directory as scope in monorepo with apps/", async () => {
@@ -208,8 +208,8 @@ describe("generate-pr-complete tool", () => {
     const result = await executeGenerateComplete();
 
     expect(result.title).toBe("fix(frontend): resolve rendering bug");
-    expect(result.description).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
-    expect(result.description).toContain("- corrige resolve rendering bug");
+    expect(result.description).toContain("**What does this PR change or add?**");
+    expect(result.description).toContain("- fixes resolve rendering bug");
   });
 
   it("should handle libs/ monorepo structure", async () => {

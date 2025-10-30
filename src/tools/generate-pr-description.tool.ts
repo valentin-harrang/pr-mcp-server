@@ -14,7 +14,7 @@ import { git } from "../core/git/repository.js";
 export async function executeGeneratePR(
   title?: string,
   template: TemplateType = "standard",
-  language: Language = "fr",
+  language: Language = "en",
   includeStats: boolean = true,
   baseBranch?: string
 ): Promise<string> {
@@ -85,7 +85,7 @@ ${template !== "minimal" ? '5. **Testing** - How the changes were/should be test
 - Adapt language to the project's tech stack (based on Project Context)
 ${language === "fr" ? '- Write in professional French' : '- Write in clear English'}
 
-**Important**: Generate ONLY the PR description text, not this prompt. The description should be ready to paste into GitHub.`;
+**Important**: Generate ONLY the PR description text, not this prompt. The description should be ready to paste into GitHub. Do NOT add a GIF - it will be added automatically later.`;
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -100,7 +100,7 @@ ${language === "fr" ? '- Write in professional French' : '- Write in clear Engli
 export async function executeGeneratePRSimple(
   title?: string,
   template: TemplateType = "standard",
-  language: Language = "fr",
+  language: Language = "en",
   includeStats: boolean = true,
   baseBranch?: string
 ): Promise<string> {

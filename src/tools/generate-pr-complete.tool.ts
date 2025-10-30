@@ -77,7 +77,7 @@ export interface PRCompleteResult {
  */
 export async function executeGenerateComplete(
   template: TemplateType = "standard",
-  language: Language = "fr",
+  language: Language = "en",
   includeStats: boolean = true,
   maxTitleLength?: number,
   baseBranch?: string

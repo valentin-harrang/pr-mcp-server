@@ -7,6 +7,7 @@ import { analyzeBranch } from "../core/git/analyzer.js";
 import { prTemplates } from "../templates/pr-templates.js";
 import { CommitInfo } from "../core/git/types.js";
 import { gatherProjectContext } from "../core/context/project-context.js";
+import { selectGif } from "../templates/gif-selector.js";
 
 export interface CreatePRCompleteResult {
   url: string;
@@ -37,14 +38,16 @@ export interface CreatePRCompleteResult {
  * This tool performs the complete PR creation workflow:
  * 1. Analyzes changes and gathers project context
  * 2. Uses provided title/description or generates simple versions
- * 3. Includes AI-powered code review (if aiReviewText provided)
- * 4. Adds relevant GIF at the end
- * 5. Creates/updates the PR on GitHub
- * 6. Assigns appropriate reviewers automatically
+ * 3. Prepares the AI review section (if aiReviewText provided)
+ * 4. Prepares the description
+ * 5. Adds AI review section
+ * 6. Adds relevant GIF at the end (after review)
+ * 7. Creates/updates the PR on GitHub
+ * 8. Assigns appropriate reviewers automatically
  */
 export async function executeCreatePRComplete(
   template: TemplateType = "standard",
-  language: Language = "fr",
+  language: Language = "en",
   includeStats: boolean = true,
   maxTitleLength?: number,
   baseBranch?: string,
@@ -165,25 +168,21 @@ export async function executeCreatePRComplete(
       console.error(`   ✓ Template-based description generated`);
     }
 
-    // Insert the AI review section before the GIF (only if using template-generated description)
-    if (reviewSection && !description) {
-      // Only insert review into template-generated descriptions
-      // If user provided custom description, they should include review themselves
-      const gifMatch = finalDescription.match(/!\[.*?\]\(.*?\)/);
-      if (gifMatch) {
-        const gifIndex = finalDescription.indexOf(gifMatch[0]);
-        finalDescription = finalDescription.slice(0, gifIndex) + reviewSection + "\n\n" + finalDescription.slice(gifIndex);
-        console.error(`   ✓ Review inserted before GIF`);
-      } else {
-        // No GIF found, append review at the end
-        finalDescription += reviewSection;
-        console.error(`   ✓ Review appended (no GIF found)`);
-      }
-    } else if (reviewSection && description) {
-      // User provided description - append review at the end
-      finalDescription += "\n\n" + reviewSection;
-      console.error(`   ✓ Review appended to custom description`);
+    // Remove any existing GIFs from the description (template or AI-generated)
+    const gifRegex = /!\[.*?\]\(.*?giphy\.com.*?\)/g;
+    finalDescription = finalDescription.replace(gifRegex, '').trim();
+
+    // STEP 5: Add AI review section (if provided)
+    if (reviewSection) {
+      finalDescription += reviewSection;
+      console.error(`   ✓ Review section added`);
     }
+
+    // STEP 6: Generate and add GIF at the very end (after review)
+    console.error("🎬 STEP 6: Adding GIF...");
+    const gifUrl = await selectGif(analysis);
+    finalDescription += `\n\n![PR GIF](${gifUrl})`;
+    console.error(`   ✓ GIF added at the end`);
 
     console.error(`   ✓ Final description ready (${finalDescription.split('\n').length} lines)`);
 
@@ -207,8 +206,8 @@ export async function executeCreatePRComplete(
       throw error;
     }
 
-    // STEP 5: Create or update PR on GitHub
-    console.error("🚀 STEP 5: Creating/updating PR on GitHub...");
+    // STEP 7: Create or update PR on GitHub
+    console.error("🚀 STEP 7: Creating/updating PR on GitHub...");
 
     // Check if a PR already exists for this branch
     const { data: existingPRs } = await octokit.rest.pulls.list({
@@ -266,12 +265,12 @@ export async function executeCreatePRComplete(
 
     console.error(`   ✓ PR ${action}: #${pr.number}`);
 
-    // STEP 6: Assign reviewers automatically
+    // STEP 8: Assign reviewers automatically
     let reviewersAdded: string[] = [];
     let reviewerError: string | undefined;
 
     if (addReviewers) {
-      console.error("👥 STEP 6: Assigning reviewers based on Git history...");
+      console.error("👥 STEP 8: Assigning reviewers based on Git history...");
       try {
         const reviewersResult = await executeSuggestReviewers(maxReviewers, detectedBaseBranch);
 
@@ -328,7 +327,7 @@ export async function executeCreatePRComplete(
         console.error(`   ⚠️  ${reviewerError}`);
       }
     } else {
-      console.error("⏭️  STEP 6: Skipping reviewer assignment (disabled)");
+      console.error("⏭️  STEP 8: Skipping reviewer assignment (disabled)");
     }
 
     console.error("=== WORKFLOW COMPLETE ===");

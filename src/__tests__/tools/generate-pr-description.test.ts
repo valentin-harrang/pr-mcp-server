@@ -31,15 +31,15 @@ describe("generate-pr-description tool (simple/fallback)", () => {
     hasTests: true,
   };
 
-  it("should generate standard FR template by default", async () => {
+  it("should generate standard EN template by default", async () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
     const result = await executeGeneratePRSimple();
 
     expect(result).toContain("## Description");
-    expect(result).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
-    expect(result).toContain("- ajoute OAuth support");
-    expect(result).toContain("- ajoute token refresh");
+    expect(result).toContain("**What does this PR change or add?**");
+    expect(result).toContain("- adds OAuth support");
+    expect(result).toContain("- adds token refresh");
   });
 
   it("should include custom title in description", async () => {
@@ -48,7 +48,7 @@ describe("generate-pr-description tool (simple/fallback)", () => {
     const result = await executeGeneratePRSimple("Add authentication feature");
 
     expect(result).toContain("## Description");
-    expect(result).toContain("- ajoute OAuth support");
+    expect(result).toContain("- adds OAuth support");
   });
 
   it("should generate minimal template", async () => {
@@ -84,13 +84,24 @@ describe("generate-pr-description tool (simple/fallback)", () => {
     expect(result).not.toContain("Cette PR");
   });
 
-  it("should exclude stats when includeStats is false", async () => {
+  it("should generate French template when specified", async () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
-    const result = await executeGeneratePRSimple(undefined, "standard", "fr", false);
+    const result = await executeGeneratePRSimple(undefined, "standard", "fr");
 
     expect(result).toContain("## Description");
     expect(result).toContain("**Que fait cette PR ou qu'ajoute-t-elle ?**");
+    expect(result).toContain("- ajoute OAuth support");
+    expect(result).toContain("- ajoute token refresh");
+  });
+
+  it("should exclude stats when includeStats is false", async () => {
+    vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
+
+    const result = await executeGeneratePRSimple(undefined, "standard", "en", false);
+
+    expect(result).toContain("## Description");
+    expect(result).toContain("**What does this PR change or add?**");
   });
 
   it("should handle custom baseBranch", async () => {

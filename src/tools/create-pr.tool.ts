@@ -35,7 +35,7 @@ export interface CreatePRResult {
  */
 export async function executeCreatePR(
   template: TemplateType = "standard",
-  language: Language = "fr",
+  language: Language = "en",
   includeStats: boolean = true,
   maxTitleLength?: number,
   baseBranch?: string,
