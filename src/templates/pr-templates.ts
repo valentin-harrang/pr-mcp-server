@@ -306,14 +306,7 @@ ${
     ? "- ⚠️ **Breaking Changes detected**"
     : "- ✅ No breaking changes"
 }
-${data.hasTests ? "- ✅ Tests included" : "- ⚠️ No tests added"}
-
-### 👥 Suggested reviewers
-To be determined based on modified files
-
-### 🔗 Links
-- Related issue: #XXX
-- Documentation: [Link to docs]`,
+${data.hasTests ? "- ✅ Tests included" : "- ⚠️ No tests added"}`,
     en: async (data: TemplateData) =>
       `${await prTemplates.standard.en(data)}
 
@@ -323,13 +316,6 @@ ${
     ? "- ⚠️ **Breaking Changes detected**"
     : "- ✅ No breaking changes"
 }
-${data.hasTests ? "- ✅ Tests included" : "- ⚠️ No tests added"}
-
-### 👥 Suggested reviewers
-To be determined based on modified files
-
-### 🔗 Links
-- Related issue: #XXX
-- Documentation: [Link to docs]`,
+${data.hasTests ? "- ✅ Tests included" : "- ⚠️ No tests added"}`,
   },
 };

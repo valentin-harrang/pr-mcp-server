@@ -15,7 +15,7 @@ describe("review tool", () => {
     vi.clearAllMocks();
   });
 
-  it("should approve when no critical issues", async () => {
+  it("should generate review prompt with proper context", async () => {
     const mockAnalysis = {
       currentBranch: "feature/auth",
       baseBranch: "main",
@@ -41,14 +41,16 @@ describe("review tool", () => {
 
     const result = await executeReview();
 
-    expect(result).toContain("## Summary");
-    expect(result).toContain("## Critical Issues");
-    expect(result).toContain("- None");
-    expect(result).toContain("## Decision");
-    expect(result).toContain("APPROVE");
+    // Verify it returns a prompt for AI review
+    expect(result).toContain("# Code Review Request");
+    expect(result).toContain("## Changes Summary");
+    expect(result).toContain("**Has Tests**: Yes");
+    expect(result).toContain("**Breaking Changes**: No");
+    expect(result).toContain("## Full Diff");
+    expect(result).toContain("IMPORTANT INSTRUCTIONS FOR AI REVIEW");
   });
 
-  it("should request changes when tests are missing", async () => {
+  it("should indicate when tests are missing in the prompt", async () => {
     const mockAnalysis = {
       currentBranch: "feature/auth",
       baseBranch: "main",
@@ -73,11 +75,12 @@ describe("review tool", () => {
 
     const result = await executeReview();
 
-    expect(result).toContain("REQUEST_CHANGES");
-    expect(result).toContain("Missing or insufficient tests");
+    // Verify the prompt indicates missing tests for AI to review
+    expect(result).toContain("**Has Tests**: No");
+    expect(result).toContain("Testing Coverage");
   });
 
-  it("should detect console.log statements", async () => {
+  it("should include diff with console.log for AI to detect", async () => {
     const mockAnalysis = {
       currentBranch: "feature/debug",
       baseBranch: "main",
@@ -103,11 +106,12 @@ describe("review tool", () => {
 
     const result = await executeReview();
 
-    expect(result).toContain("Debug statements found");
-    expect(result).toContain("REQUEST_CHANGES");
+    // Verify the prompt includes the diff with console.log for AI to analyze
+    expect(result).toContain("console.log");
+    expect(result).toContain("## Full Diff");
   });
 
-  it("should detect breaking changes", async () => {
+  it("should indicate breaking changes in the prompt", async () => {
     const mockAnalysis = {
       currentBranch: "feature/breaking",
       baseBranch: "main",
@@ -132,11 +136,12 @@ describe("review tool", () => {
 
     const result = await executeReview();
 
-    expect(result).toContain("breaking change");
-    expect(result).toContain("REQUEST_CHANGES");
+    // Verify the prompt indicates breaking changes for AI to review
+    expect(result).toContain("**Breaking Changes**: Yes");
+    expect(result).toContain("BREAKING CHANGE");
   });
 
-  it("should detect TODO/FIXME comments", async () => {
+  it("should include TODO/FIXME comments in diff for AI to detect", async () => {
     const mockAnalysis = {
       currentBranch: "feature/incomplete",
       baseBranch: "main",
@@ -162,11 +167,12 @@ describe("review tool", () => {
 
     const result = await executeReview();
 
-    expect(result).toContain("TODO/FIXME");
-    expect(result).toContain("REQUEST_CHANGES");
+    // Verify the prompt includes TODO for AI to detect
+    expect(result).toContain("TODO");
+    expect(result).toContain("## Full Diff");
   });
 
-  it("should suggest adding tests for large changes", async () => {
+  it("should indicate large changes without tests in the prompt", async () => {
     const mockAnalysis = {
       currentBranch: "feature/large",
       baseBranch: "main",
@@ -190,7 +196,10 @@ describe("review tool", () => {
 
     const result = await executeReview();
 
-    expect(result).toContain("Add unit/integration tests");
+    // Verify the prompt shows large changes without tests for AI to flag
+    expect(result).toContain("**Has Tests**: No");
+    expect(result).toContain("**Insertions**: +400");
+    expect(result).toContain("**Deletions**: -50");
   });
 
   it("should respect baseBranch parameter", async () => {

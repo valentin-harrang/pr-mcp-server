@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { createGitInstance, getGitHubRepoInfo, detectMainBranch } from "../core/git/repository.js";
-import { executeGenerateTitle } from "./generate-pr-title.tool.js";
+import { executeGenerateTitleSimple } from "./generate-pr-title.tool.js";
 import { executeGeneratePR } from "./generate-pr-description.tool.js";
 import { executeSuggestReviewers } from "./suggest-reviewers.tool.js";
 import { Language, TemplateType } from "../validation/types.js";
@@ -18,7 +18,15 @@ export interface CreatePRResult {
 
 /**
  * Tool: create_pr
- * Creates a Pull Request on GitHub using generate-pr-title and generate-pr-description.
+ * Creates a Pull Request on GitHub.
+ *
+ * RECOMMENDED WORKFLOW FOR AI ASSISTANTS:
+ * 1. Call 'generate_pr_title' tool first to get an AI prompt
+ * 2. Analyze the code changes and generate an intelligent title
+ * 3. Call this tool with the generated title in the 'title' parameter
+ *
+ * If no title is provided, it will generate a simple title based on commit messages.
+ *
  * Smart handling: If a PR already exists for the branch (open or closed), it will be updated/reopened
  * instead of failing with a duplicate error.
  * Can automatically suggest and add reviewers based on Git history.
@@ -32,7 +40,8 @@ export async function executeCreatePR(
   draft: boolean = false,
   githubToken?: string,
   addReviewers: boolean = true,
-  maxReviewers: number = 3
+  maxReviewers: number = 3,
+  title?: string
 ): Promise<CreatePRResult> {
   try {
     // Get GitHub token (supports both personal access tokens 'ghp_' and enterprise tokens 'github_pat_')
@@ -76,12 +85,12 @@ export async function executeCreatePR(
       throw error;
     }
 
-    // Generate title
-    const title = await executeGenerateTitle(maxTitleLength, detectedBaseBranch);
+    // Generate title if not provided
+    const finalTitle = title || await executeGenerateTitleSimple(maxTitleLength, detectedBaseBranch);
 
     // Generate description
     const description = await executeGeneratePR(
-      title,
+      finalTitle,
       template,
       language,
       includeStats,
@@ -110,7 +119,7 @@ export async function executeCreatePR(
           owner: repoInfo.owner,
           repo: repoInfo.repo,
           pull_number: existingPR.number,
-          title,
+          title: finalTitle,
           body: description,
           state: 'open',
         });
@@ -122,7 +131,7 @@ export async function executeCreatePR(
           owner: repoInfo.owner,
           repo: repoInfo.repo,
           pull_number: existingPR.number,
-          title,
+          title: finalTitle,
           body: description,
         });
         pr = updatedPR;
@@ -133,7 +142,7 @@ export async function executeCreatePR(
       const { data: newPR } = await octokit.rest.pulls.create({
         owner: repoInfo.owner,
         repo: repoInfo.repo,
-        title,
+        title: finalTitle,
         body: description,
         head: currentBranch,
         base: detectedBaseBranch,

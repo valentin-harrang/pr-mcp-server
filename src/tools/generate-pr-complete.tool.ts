@@ -18,13 +18,13 @@ const CONVENTIONAL_TYPES = [
 function inferScopeFromFiles(files: string[]): string | undefined {
   // Monorepo root directories that should use their child directory as scope
   const MONOREPO_ROOTS = ["packages", "apps", "libs", "modules", "services"];
-  
+
   // Extract first directory or filename stem as scope heuristic
   for (const file of files) {
     const parts = file.split("/");
     if (parts.length > 1) {
       const firstLevel = parts[0].toLowerCase();
-      
+
       // If in a monorepo structure, use the second level (e.g., packages/api -> api)
       if (MONOREPO_ROOTS.includes(firstLevel) && parts.length > 2) {
         const candidate = parts[1].replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase();
@@ -32,7 +32,7 @@ function inferScopeFromFiles(files: string[]): string | undefined {
           return candidate;
         }
       }
-      
+
       // Otherwise use the first level
       const candidate = firstLevel.replace(/[^a-zA-Z0-9_-]/g, "-");
       if (candidate && candidate !== "src" && candidate !== "lib") {
@@ -93,8 +93,8 @@ export async function executeGenerateComplete(
     const subject = inferSubjectFromCommits(messages);
 
     const base = scope ? `${type}(${scope}): ${subject}` : `${type}: ${subject}`;
-    const title = !maxTitleLength || base.length <= maxTitleLength 
-      ? base 
+    const title = !maxTitleLength || base.length <= maxTitleLength
+      ? base
       : base.slice(0, Math.max(3, maxTitleLength - 3)).trimEnd() + "...";
 
     // Generate description with detailed changes

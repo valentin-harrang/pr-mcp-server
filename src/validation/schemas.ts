@@ -64,6 +64,7 @@ export const CreatePRSchema = z.object({
   githubToken: z.string().optional(),
   addReviewers: z.boolean().default(true),
   maxReviewers: z.number().int().positive().max(20).default(3),
+  title: z.string().optional(), // AI-generated title from generate_pr_title
 });
 
 export const CreatePRCompleteSchema = z.object({
@@ -84,4 +85,5 @@ export const CreatePRCompleteSchema = z.object({
   maxReviewers: z.number().int().positive().max(20).default(3),
   includeAIReview: z.boolean().default(false),
   aiReviewText: z.string().optional(), // The actual AI-generated review to include
+  title: z.string().optional(), // AI-generated title from generate_pr_title
 });

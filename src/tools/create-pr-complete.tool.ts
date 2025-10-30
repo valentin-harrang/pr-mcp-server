@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { createGitInstance, getGitHubRepoInfo, detectMainBranch } from "../core/git/repository.js";
-import { executeGenerateTitle } from "./generate-pr-title.tool.js";
+import { executeGenerateTitleSimple } from "./generate-pr-title.tool.js";
 import { executeSuggestReviewers } from "./suggest-reviewers.tool.js";
 import { Language, TemplateType } from "../validation/types.js";
 import { analyzeBranch } from "../core/git/analyzer.js";
@@ -25,16 +25,19 @@ export interface CreatePRCompleteResult {
  *
  * UNIFIED PR CREATION WORKFLOW
  *
- * This is the main orchestrator that performs the complete PR creation workflow:
+ * RECOMMENDED WORKFLOW FOR AI ASSISTANTS:
+ * 1. Call 'generate_pr_title' tool first to get an AI prompt
+ * 2. Analyze the code changes and generate an intelligent title
+ * 3. Call this tool with the generated title in the 'title' parameter
+ *
+ * This tool performs the complete PR creation workflow:
  * 1. Analyzes changes and gathers project context
- * 2. Generates PR title based on branch name and changes
- * 3. Performs AI-powered code review with project context awareness
+ * 2. Uses provided title or generates a simple one based on commits
+ * 3. Performs AI-powered code review with project context awareness (if aiReviewText provided)
  * 4. Generates comprehensive PR description including the review
  * 5. Adds relevant GIF at the end
  * 6. Creates/updates the PR on GitHub
  * 7. Assigns appropriate reviewers automatically
- *
- * When you say "Create a PR", this tool does everything automatically.
  */
 export async function executeCreatePRComplete(
   template: TemplateType = "standard",
@@ -47,7 +50,8 @@ export async function executeCreatePRComplete(
   addReviewers: boolean = true,
   maxReviewers: number = 3,
   includeAIReview: boolean = false,
-  aiReviewText?: string
+  aiReviewText?: string,
+  title?: string
 ): Promise<CreatePRCompleteResult> {
   try {
     console.error("=== UNIFIED PR CREATION WORKFLOW STARTING ===");
@@ -78,10 +82,10 @@ export async function executeCreatePRComplete(
     console.error(`   ✓ Found ${analysis.totalCommits} commits, ${analysis.filesChanged} files changed`);
     console.error(`   ✓ Project context: ${projectContext.hasTypeScript ? 'TypeScript' : 'JavaScript'}${projectContext.testingFramework ? `, ${projectContext.testingFramework}` : ''}${projectContext.stylingApproach ? `, ${projectContext.stylingApproach}` : ''}`);
 
-    // STEP 2: Generate PR title
+    // STEP 2: Generate PR title if not provided
     console.error("📝 STEP 2: Generating PR title...");
-    const title = await executeGenerateTitle(maxTitleLength, detectedBaseBranch);
-    console.error(`   ✓ Title: ${title}`);
+    const finalTitle = title || await executeGenerateTitleSimple(maxTitleLength, detectedBaseBranch);
+    console.error(`   ✓ Title: ${finalTitle}`);
 
     // STEP 3: Add AI review if provided
     let reviewSection = "";
@@ -139,7 +143,7 @@ export async function executeCreatePRComplete(
 
     const data = {
       ...analysis,
-      title,
+      title: finalTitle,
       description: commitsList,
       includeStats,
       projectContext,
@@ -209,7 +213,7 @@ export async function executeCreatePRComplete(
           owner: repoInfo.owner,
           repo: repoInfo.repo,
           pull_number: existingPR.number,
-          title,
+          title: finalTitle,
           body: description,
           state: 'open',
         });
@@ -221,7 +225,7 @@ export async function executeCreatePRComplete(
           owner: repoInfo.owner,
           repo: repoInfo.repo,
           pull_number: existingPR.number,
-          title,
+          title: finalTitle,
           body: description,
         });
         pr = updatedPR;
@@ -232,7 +236,7 @@ export async function executeCreatePRComplete(
       const { data: newPR } = await octokit.rest.pulls.create({
         owner: repoInfo.owner,
         repo: repoInfo.repo,
-        title,
+        title: finalTitle,
         body: description,
         head: currentBranch,
         base: detectedBaseBranch,

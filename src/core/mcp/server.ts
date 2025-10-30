@@ -93,7 +93,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "generate_pr_title",
       description:
-        "Generates a conventional commit-style PR title (e.g., 'feat(auth): add OAuth support') by analyzing the current Git branch's commits and changed files. Automatically works from the current working directory. Use this when the user asks to generate/create/write a PR title or needs a title for their Pull Request.",
+        "⚠️ CRITICAL: This tool returns an ANALYSIS PROMPT for YOU (Claude) to generate a title, NOT a final title. OUTPUT: You receive comprehensive context about the code changes (commits, files, diff patterns) formatted as a prompt. YOUR JOB: Analyze that context and generate an intelligent conventional commit-style PR title (e.g., 'feat(auth): add OAuth support'). The prompt provides all the information you need to understand what changed. YOU must read it and create a concise, descriptive title that accurately reflects the changes. DO NOT return the prompt - generate YOUR title. Use when creating PR or when user asks for a PR title. The generated title should then be passed to create_pr or create_pr_complete tools.",
       inputSchema: {
         type: "object",
         properties: {
@@ -107,7 +107,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "review",
       description:
-        "⚠️ IMPORTANT: This tool returns a REVIEW REQUEST PROMPT, not a final review. When you call this tool, you will receive comprehensive context (project info, diff, commits) formatted as a prompt. YOU (Claude) must then analyze this context and provide the actual intelligent review by following the instructions in the returned prompt. This works for ANY language/framework (PHP, Python, Go, TypeScript, Rust, etc.) because it provides full project context. The review will be specific to the project's technologies and conventions. Use this when the user asks to review code or wants feedback on changes.",
+        "⚠️ CRITICAL: This tool ONLY returns an ANALYSIS PROMPT for YOU (Claude), NOT a final review. OUTPUT: You receive comprehensive context (project type, diff, commits, structure) formatted as a detailed prompt with instructions. YOUR JOB: Analyze that context and generate the actual code review following the exact format specified in the prompt. The prompt includes everything you need: project context, full diff, testing framework, architecture details. YOU must read it, analyze the code changes, and write a concise review (max 10-15 lines) with sections: Summary, Critical Issues, Key Suggestions, Decision (APPROVE/REQUEST_CHANGES). DO NOT return the prompt itself - generate YOUR review. Works for ANY language/framework because context is provided. Use when user asks to review code or when creating PR with review.",
       inputSchema: {
         type: "object",
         properties: {
@@ -156,10 +156,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "create_pr",
       description:
-        "Creates a Pull Request on GitHub using generate_pr_title for the title and generate_pr_description for the description. Automatically analyzes the current Git branch from the working directory and creates the PR. Can automatically suggest and add reviewers based on Git history. Requires GITHUB_TOKEN environment variable or githubToken parameter. Use this when the user asks to create a PR, open a PR, or submit a PR to GitHub.",
+        "Creates a Pull Request on GitHub WITHOUT AI review. **RECOMMENDED WORKFLOW**: (1) Call 'generate_pr_title' tool → get analysis prompt, (2) YOU (Claude) analyze and generate intelligent title, (3) Call THIS tool with 'title' parameter. If no title provided, a simple title is generated from commits. NOTE: This tool does NOT include AI code review. For complete PR WITH AI review, use 'create_pr_complete' instead. This tool: analyzes branch, generates description, creates/updates PR, adds reviewers automatically. Requires GITHUB_TOKEN. Use when user asks to create a simple PR without code review.",
       inputSchema: {
         type: "object",
         properties: {
+          title: {
+            type: "string",
+            description: "RECOMMENDED: YOUR (Claude's) generated PR title. Workflow: (1) Call 'generate_pr_title' to get analysis prompt, (2) YOU analyze and create intelligent title, (3) Pass YOUR title here. DO NOT pass the tool's output directly - it's a prompt for YOU, not the final title. If not provided, a simple title is auto-generated from commit messages.",
+          },
           template: {
             type: "string",
             enum: ["standard", "detailed", "minimal"],
@@ -210,13 +214,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "create_pr_complete",
       description:
-        "🚀 UNIFIED PR CREATION WORKFLOW - **RECOMMENDED USAGE WHEN USER SAYS 'Create a PR'**: STEP 1: Call 'review' tool to get comprehensive project context and diff. STEP 2: YOU (Claude) analyze that context and generate an intelligent, project-specific code review following the format in the returned prompt. STEP 3: Call THIS tool with the 'aiReviewText' parameter containing your generated review. This creates a complete PR with: auto-generated title, comprehensive description, YOUR AI review integrated in the description, smart GIF, automatic reviewer assignment. Works for ANY language/framework (PHP, Python, Go, TypeScript, Rust, etc.) because the review adapts to project context. Requires GITHUB_TOKEN environment variable.",
+        "🚀 UNIFIED PR CREATION WORKFLOW - **WHEN USER SAYS 'Create a PR', YOU MUST FOLLOW THESE STEPS**: (1) Call 'generate_pr_title' tool → get analysis prompt, (2) YOU analyze code and generate intelligent title, (3) Call 'review' tool → get comprehensive context/diff prompt, (4) YOU analyze and write code review following the format in the prompt, (5) Call THIS tool passing both 'title' and 'aiReviewText' parameters. IMPORTANT: Steps 3-4 are MANDATORY for complete PR with AI review. The review MUST be generated by YOU (Claude), not by the tool. This creates a professional PR with: intelligent title, comprehensive description, YOUR AI code review, smart GIF, automatic reviewer assignment. Works for ANY language/framework. Requires GITHUB_TOKEN.",
       inputSchema: {
         type: "object",
         properties: {
+          title: {
+            type: "string",
+            description: "RECOMMENDED: YOUR (Claude's) generated PR title. Workflow: (1) Call 'generate_pr_title' to get analysis prompt, (2) YOU analyze and create intelligent title, (3) Pass YOUR title here. DO NOT pass the tool's output directly - it's a prompt for YOU, not the final title. If not provided, a simple title is auto-generated from commit messages.",
+          },
           aiReviewText: {
             type: "string",
-            description: "IMPORTANT: The AI-generated code review text to include in the PR description. You (Claude) should call 'review' tool first, analyze the context, write your review following the format specified, then pass it here.",
+            description: "REQUIRED for complete PR with review: YOUR (Claude's) generated code review text. Workflow: (1) Call 'review' tool to get analysis prompt with context/diff, (2) YOU analyze and write the review following the format in that prompt, (3) Pass YOUR review text here. DO NOT pass the review tool's output directly - it's a prompt for YOU to analyze, not the final review.",
           },
           template: {
             type: "string",

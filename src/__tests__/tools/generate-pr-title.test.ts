@@ -1,15 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { executeGenerateTitle } from "../../tools/generate-pr-title.tool.js";
 import * as analyzer from "../../core/git/analyzer.js";
+import * as repository from "../../core/git/repository.js";
+import * as projectContext from "../../core/context/project-context.js";
 
 vi.mock("../../core/git/analyzer.js");
+vi.mock("../../core/git/repository.js");
+vi.mock("../../core/context/project-context.js");
 
 describe("generate-pr-title tool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Mock git.diff to return empty diff
+    vi.mocked(repository.git.diff).mockResolvedValue("");
+
+    // Mock project context
+    vi.mocked(projectContext.gatherProjectContext).mockResolvedValue({
+      hasTypeScript: true,
+      hasI18n: false,
+      hasLinter: false,
+      hasFormatter: false,
+      hasADR: false,
+      hasDocs: false,
+      hasContributing: false,
+      hasMonorepo: false,
+      dependencies: {},
+      devDependencies: {},
+      projectStructure: [],
+    });
+    vi.mocked(projectContext.formatProjectContextForPrompt).mockReturnValue("Mock project context");
   });
 
-  it("should generate a conventional title with type and scope", async () => {
+  it("should return an AI prompt for title generation with type and scope", async () => {
     const mockAnalysis = {
       currentBranch: "feature/auth",
       baseBranch: "main",
@@ -32,10 +55,13 @@ describe("generate-pr-title tool", () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
     const result = await executeGenerateTitle();
-    expect(result).toBe("feat(auth): add OAuth support");
+    expect(result).toContain("PR Title Generation Request");
+    expect(result).toContain("feat");
+    expect(result).toContain("auth");
+    expect(result).toContain("OAuth support");
   });
 
-  it("should generate title without scope if files are in src/", async () => {
+  it("should return an AI prompt without scope if files are in src/", async () => {
     const mockAnalysis = {
       currentBranch: "fix-bug",
       baseBranch: "main",
@@ -56,10 +82,13 @@ describe("generate-pr-title tool", () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
     const result = await executeGenerateTitle();
-    expect(result).toBe("fix: resolve memory leak");
+    expect(result).toContain("PR Title Generation Request");
+    expect(result).toContain("fix");
+    expect(result).toContain("resolve memory leak");
+    expect(result).toContain("(no scope)");
   });
 
-  it("should truncate title if maxLength is specified", async () => {
+  it("should include maxLength in AI prompt when specified", async () => {
     const mockAnalysis = {
       currentBranch: "feature/very-long-feature",
       baseBranch: "main",
@@ -80,11 +109,11 @@ describe("generate-pr-title tool", () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
     const result = await executeGenerateTitle(50);
-    expect(result.length).toBeLessThanOrEqual(50);
-    expect(result).toMatch(/\.{3}$/); // ends with ...
+    expect(result).toContain("PR Title Generation Request");
+    expect(result).toContain("max 50 characters");
   });
 
-  it("should infer 'chore' as fallback type", async () => {
+  it("should suggest 'chore' as fallback type in AI prompt", async () => {
     const mockAnalysis = {
       currentBranch: "update-deps",
       baseBranch: "main",
@@ -105,10 +134,11 @@ describe("generate-pr-title tool", () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
     const result = await executeGenerateTitle();
-    expect(result).toMatch(/^chore:/);
+    expect(result).toContain("PR Title Generation Request");
+    expect(result).toContain("chore");
   });
 
-  it("should use child directory as scope in monorepo with packages/", async () => {
+  it("should suggest child directory as scope in AI prompt for monorepo with packages/", async () => {
     const mockAnalysis = {
       currentBranch: "feature/api-update",
       baseBranch: "main",
@@ -130,10 +160,12 @@ describe("generate-pr-title tool", () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
     const result = await executeGenerateTitle();
-    expect(result).toBe("feat(api): add new endpoint");
+    expect(result).toContain("PR Title Generation Request");
+    expect(result).toContain("feat");
+    expect(result).toContain("api");
   });
 
-  it("should use child directory as scope in monorepo with apps/", async () => {
+  it("should suggest child directory as scope in AI prompt for monorepo with apps/", async () => {
     const mockAnalysis = {
       currentBranch: "fix/frontend-bug",
       baseBranch: "main",
@@ -154,10 +186,12 @@ describe("generate-pr-title tool", () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
     const result = await executeGenerateTitle();
-    expect(result).toBe("fix(frontend): resolve rendering issue");
+    expect(result).toContain("PR Title Generation Request");
+    expect(result).toContain("fix");
+    expect(result).toContain("frontend");
   });
 
-  it("should handle multiple monorepo packages and use the first one", async () => {
+  it("should suggest first monorepo package as scope in AI prompt", async () => {
     const mockAnalysis = {
       currentBranch: "feature/shared-lib",
       baseBranch: "main",
@@ -179,6 +213,8 @@ describe("generate-pr-title tool", () => {
     vi.mocked(analyzer.analyzeBranch).mockResolvedValue(mockAnalysis);
 
     const result = await executeGenerateTitle();
-    expect(result).toBe("feat(utils): add utility functions");
+    expect(result).toContain("PR Title Generation Request");
+    expect(result).toContain("feat");
+    expect(result).toContain("utils");
   });
 });
