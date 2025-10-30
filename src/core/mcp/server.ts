@@ -107,10 +107,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "review",
       description:
-        "Performs a code review of the current Git branch changes and provides a concise, structured PR review in markdown format (10-15 lines). Automatically analyzes the working directory's Git repository. Use this when the user asks to review the code, provide feedback, or check the changes.",
+        "⚠️ IMPORTANT: This tool returns a REVIEW REQUEST PROMPT, not a final review. When you call this tool, you will receive comprehensive context (project info, diff, commits) formatted as a prompt. YOU (Claude) must then analyze this context and provide the actual intelligent review by following the instructions in the returned prompt. This works for ANY language/framework (PHP, Python, Go, TypeScript, Rust, etc.) because it provides full project context. The review will be specific to the project's technologies and conventions. Use this when the user asks to review code or wants feedback on changes.",
       inputSchema: {
         type: "object",
-        properties: {},
+        properties: {
+          baseBranch: {
+            type: "string",
+            description: "Base branch for comparison (auto-detected if not provided)",
+          },
+        },
       },
     },
     {
@@ -155,6 +160,64 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: "object",
         properties: {
+          template: {
+            type: "string",
+            enum: ["standard", "detailed", "minimal"],
+            description: "Template to use for the description",
+            default: "standard",
+          },
+          language: {
+            type: "string",
+            enum: ["en", "fr"],
+            description: "Description language",
+            default: "fr",
+          },
+          includeStats: {
+            type: "boolean",
+            description: "Include statistics in the description",
+            default: true,
+          },
+          maxTitleLength: {
+            type: "number",
+            description: "Maximum length for the title (optional, e.g., 72)",
+          },
+          baseBranch: {
+            type: "string",
+            description: "Base branch for comparison (auto-detected if not provided)",
+          },
+          draft: {
+            type: "boolean",
+            description: "Create the PR as a draft",
+            default: false,
+          },
+          githubToken: {
+            type: "string",
+            description: "GitHub token for authentication (optional, defaults to GITHUB_TOKEN env var)",
+          },
+          addReviewers: {
+            type: "boolean",
+            description: "Automatically suggest and add reviewers based on Git history",
+            default: true,
+          },
+          maxReviewers: {
+            type: "number",
+            description: "Maximum number of reviewers to add (1-20)",
+            default: 3,
+          },
+        },
+      },
+    },
+    {
+      name: "create_pr_complete",
+      description:
+        "🚀 UNIFIED PR CREATION WORKFLOW - **RECOMMENDED USAGE WHEN USER SAYS 'Create a PR'**: STEP 1: Call 'review' tool to get comprehensive project context and diff. STEP 2: YOU (Claude) analyze that context and generate an intelligent, project-specific code review following the format in the returned prompt. STEP 3: Call THIS tool with the 'aiReviewText' parameter containing your generated review. This creates a complete PR with: auto-generated title, comprehensive description, YOUR AI review integrated in the description, smart GIF, automatic reviewer assignment. Works for ANY language/framework (PHP, Python, Go, TypeScript, Rust, etc.) because the review adapts to project context. Requires GITHUB_TOKEN environment variable.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          aiReviewText: {
+            type: "string",
+            description: "IMPORTANT: The AI-generated code review text to include in the PR description. You (Claude) should call 'review' tool first, analyze the context, write your review following the format specified, then pass it here.",
+          },
           template: {
             type: "string",
             enum: ["standard", "detailed", "minimal"],

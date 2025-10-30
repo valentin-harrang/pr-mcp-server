@@ -6,6 +6,7 @@ import { executeGenerateTitle } from "../../tools/generate-pr-title.tool.js";
 import { executeReview } from "../../tools/review.tool.js";
 import { executeGenerateComplete } from "../../tools/generate-pr-complete.tool.js";
 import { executeCreatePR } from "../../tools/create-pr.tool.js";
+import { executeCreatePRComplete } from "../../tools/create-pr-complete.tool.js";
 import {
   AnalyzeBranchSchema,
   GeneratePRSchema,
@@ -14,6 +15,7 @@ import {
   ReviewSchema,
   GenerateCompleteSchema,
   CreatePRSchema,
+  CreatePRCompleteSchema,
 } from "../../validation/schemas.js";
 
 /**
@@ -137,6 +139,31 @@ export async function handleToolRequest(
           validated.githubToken,
           validated.addReviewers,
           validated.maxReviewers
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "create_pr_complete": {
+        const validated = CreatePRCompleteSchema.parse(args ?? {});
+        const result = await executeCreatePRComplete(
+          validated.template,
+          validated.language,
+          validated.includeStats,
+          validated.maxTitleLength,
+          validated.baseBranch,
+          validated.draft,
+          validated.githubToken,
+          validated.addReviewers,
+          validated.maxReviewers,
+          validated.includeAIReview,
+          validated.aiReviewText
         );
         return {
           content: [
